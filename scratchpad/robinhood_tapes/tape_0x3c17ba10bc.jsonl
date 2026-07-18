@@ -1,0 +1,9 @@
+{"kind":"sell","volume_usd":133.11,"ts":"2026-07-17T02:39:40+00:00","maker":"0x9a5d9660a706d94df49757e84e8130fd29c98a81","pair":"0x3c17ba10bc05d8dff9197cd007a5e4fa5dd45e4a","sym":"GRIFFIN","lag_secs":11.87}
+{"kind":"buy","volume_usd":92.69,"ts":"2026-07-17T02:39:40+00:00","maker":"0x3eeabd3352455b36160a0ffe96c7f9a15c6196b0","pair":"0x3c17ba10bc05d8dff9197cd007a5e4fa5dd45e4a","sym":"GRIFFIN","lag_secs":11.87}
+{"kind":"sell","volume_usd":18.53,"ts":"2026-07-17T02:39:41+00:00","maker":"0x5a2b4b07ca0fc5612cb358e0c0360ae41bdc3c31","pair":"0x3c17ba10bc05d8dff9197cd007a5e4fa5dd45e4a","sym":"GRIFFIN","lag_secs":10.87}
+{"kind":"buy","volume_usd":692.07,"ts":"2026-07-17T02:39:42+00:00","maker":"0xe2257b5cc76b11347970c4441d52f313989cf4ff","pair":"0x3c17ba10bc05d8dff9197cd007a5e4fa5dd45e4a","sym":"GRIFFIN","lag_secs":9.87}
+{"kind":"sell","volume_usd":0.29,"ts":"2026-07-17T02:39:44+00:00","maker":"0x5b3a17439393904173475857089224717e69a4e9","pair":"0x3c17ba10bc05d8dff9197cd007a5e4fa5dd45e4a","sym":"GRIFFIN","lag_secs":7.87}
+{"kind":"buy","volume_usd":74.51,"ts":"2026-07-17T02:39:45+00:00","maker":"0x13f496d2f33a3ab6903e2c6d879ffcdcb34d25fd","pair":"0x3c17ba10bc05d8dff9197cd007a5e4fa5dd45e4a","sym":"GRIFFIN","lag_secs":6.87}
+{"kind":"buy","volume_usd":158.11,"ts":"2026-07-17T02:39:47+00:00","maker":"0xb3aa3605054b697abb4ae0247a3c82123a736395","pair":"0x3c17ba10bc05d8dff9197cd007a5e4fa5dd45e4a","sym":"GRIFFIN","lag_secs":4.87}
+{"kind":"sell","volume_usd":9.32,"ts":"2026-07-17T02:39:47+00:00","maker":"0xc34be9eec33c593ab47352d4f39a180c2a991f41","pair":"0x3c17ba10bc05d8dff9197cd007a5e4fa5dd45e4a","sym":"GRIFFIN","lag_secs":4.87}
+{"kind":"buy","volume_usd":0.5,"ts":"2026-07-17T02:39:48+00:00","maker":"0xca7c8b739f2600ea9f0d6b8cf18c7b7057406ee7","pair":"0x3c17ba10bc05d8dff9197cd007a5e4fa5dd45e4a","sym":"GRIFFIN","lag_secs":3.87}

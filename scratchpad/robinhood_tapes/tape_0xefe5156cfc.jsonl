@@ -1,0 +1,15 @@
+{"kind":"buy","volume_usd":108.94,"ts":"2026-07-17T21:32:18+00:00","maker":"0xf08f5bfb7f883eb2a0e55ab5b83a672ae9307960","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":1.7}
+{"kind":"sell","volume_usd":91.84,"ts":"2026-07-17T21:32:18+00:00","maker":"0x998fded170a0926d0b133313717d838e16b44d4e","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":3.2}
+{"kind":"buy","volume_usd":502.92,"ts":"2026-07-17T21:32:20+00:00","maker":"0xf72a267f6b61c33e95cca0ce257669ad0a34d252","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":2.7}
+{"kind":"sell","volume_usd":0.27,"ts":"2026-07-17T21:32:21+00:00","maker":"0x85e28d20b98319c10fa7146777d2726ac418ecdc","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":3.21}
+{"kind":"buy","volume_usd":348.59,"ts":"2026-07-17T21:32:23+00:00","maker":"0xe6f61a245dccb45d4b3b2088c0d3fbc8f610fbad","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":2.71}
+{"kind":"buy","volume_usd":58.1,"ts":"2026-07-17T21:32:26+00:00","maker":"0x18b5dd4594fec57930fab3dbdce8ff1cf6f1ea94","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":6.38}
+{"kind":"sell","volume_usd":133.55,"ts":"2026-07-17T21:32:28+00:00","maker":"0x5b3a17439393904173475857089224717e69a4e9","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":4.38}
+{"kind":"buy","volume_usd":50.84,"ts":"2026-07-17T21:32:29+00:00","maker":"0x5c75ceec1e4c6aaf8fc4c79997caf50533040075","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":3.38}
+{"kind":"sell","volume_usd":17.64,"ts":"2026-07-17T21:32:30+00:00","maker":"0xae9c240d877367910df19f17046ce61414fd5c47","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":2.38}
+{"kind":"buy","volume_usd":350.41,"ts":"2026-07-17T21:32:31+00:00","maker":"0x06c564acf153ebc7111d34bf8d36ab8520dad510","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":2.88}
+{"kind":"sell","volume_usd":161.37,"ts":"2026-07-17T21:32:33+00:00","maker":"0x88a56696e5df6371578beee5fafe081bb150fb57","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":2.38}
+{"kind":"buy","volume_usd":32.68,"ts":"2026-07-17T21:32:34+00:00","maker":"0xeb03ac4df21e778ae617ed5e928438f3197197ec","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":2.88}
+{"kind":"buy","volume_usd":203.35,"ts":"2026-07-17T21:32:37+00:00","maker":"0xc7d169e1eb9c3047ebc32ba902a5b49aacaf503e","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":6.26}
+{"kind":"buy","volume_usd":0.55,"ts":"2026-07-17T21:32:38+00:00","maker":"0x3be9ec4e7b63efb3b70dad6c6b738aa2ac248182","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":5.26}
+{"kind":"buy","volume_usd":44.99,"ts":"2026-07-17T21:32:39+00:00","maker":"0x4502bc14760e98648a0c2f3e6956105555fefb0e","pair":"0xefe5156cfcb24339b1a20ccd44b1d66a26dabd91","sym":"WECOAI","lag_secs":4.26}

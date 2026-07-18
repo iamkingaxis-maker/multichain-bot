@@ -1,0 +1,8 @@
+{"kind":"buy","volume_usd":49.15,"ts":"2026-07-17T03:26:00+00:00","maker":"0xc91d2dc30804b17eeef32837b28e4bd9f9bd16b3","pair":"0x4938e8a55aa64ec10f10a0050862a018087cc3b5","sym":"SADBOY","lag_secs":2.78}
+{"kind":"sell","volume_usd":225.87,"ts":"2026-07-17T03:26:02+00:00","maker":"0x2e6ce3ec985a7479ef0cb7d732f566834c6320ec","pair":"0x4938e8a55aa64ec10f10a0050862a018087cc3b5","sym":"SADBOY","lag_secs":2.38}
+{"kind":"buy","volume_usd":145.26,"ts":"2026-07-17T03:26:02+00:00","maker":"0xf3a26bd9c020faa2e8b86f94dced31d31163e1ba","pair":"0x4938e8a55aa64ec10f10a0050862a018087cc3b5","sym":"SADBOY","lag_secs":2.38}
+{"kind":"sell","volume_usd":114.49,"ts":"2026-07-17T03:26:04+00:00","maker":"0xf3a26bd9c020faa2e8b86f94dced31d31163e1ba","pair":"0x4938e8a55aa64ec10f10a0050862a018087cc3b5","sym":"SADBOY","lag_secs":7.02}
+{"kind":"buy","volume_usd":1.04,"ts":"2026-07-17T03:26:06+00:00","maker":"0x19852a13fe7a3ccf9bfde9d47f6ea4245854b3cc","pair":"0x4938e8a55aa64ec10f10a0050862a018087cc3b5","sym":"SADBOY","lag_secs":5.02}
+{"kind":"sell","volume_usd":0.01,"ts":"2026-07-17T03:26:06+00:00","maker":"0x19852a13fe7a3ccf9bfde9d47f6ea4245854b3cc","pair":"0x4938e8a55aa64ec10f10a0050862a018087cc3b5","sym":"SADBOY","lag_secs":5.02}
+{"kind":"buy","volume_usd":67.35,"ts":"2026-07-17T03:26:07+00:00","maker":"0xb4df1813711b3aa6c2a8c9b5911c99d618d11baf","pair":"0x4938e8a55aa64ec10f10a0050862a018087cc3b5","sym":"SADBOY","lag_secs":4.02}
+{"kind":"sell","volume_usd":37.84,"ts":"2026-07-17T03:26:07+00:00","maker":"0xc91d2dc30804b17eeef32837b28e4bd9f9bd16b3","pair":"0x4938e8a55aa64ec10f10a0050862a018087cc3b5","sym":"SADBOY","lag_secs":4.02}

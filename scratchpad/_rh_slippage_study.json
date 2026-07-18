@@ -1,0 +1,1122 @@
+[
+ {
+  "ts": "1783894244",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x3cc9f3d89b041d62c6414651e2e99aeff5fb48f70f481c30f9baa9f4838e5216"
+ },
+ {
+  "ts": "1783894247",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x69255b82d7f2d8d600a4fe8c4d69af15e908788cfdb5b48278448c4cf87f5746"
+ },
+ {
+  "ts": "1784003095",
+  "side": "buy",
+  "margin_pct": 8.5245,
+  "slip_vs_quote_pct": 5.2688,
+  "hash": "0x5b3c43066cbbbe81fa4994109b034a6bee347a7d2103a0d9ce13482096423954"
+ },
+ {
+  "ts": "1784003103",
+  "side": "sell",
+  "margin_pct": 3.7121,
+  "slip_vs_quote_pct": 0.6008,
+  "hash": "0xc0b934ab07612589f23d9acd378beea09c19596287ec9c195cd95e21451814d2"
+ },
+ {
+  "ts": "1784004062",
+  "side": "buy",
+  "margin_pct": 4.1342,
+  "slip_vs_quote_pct": 1.0102,
+  "hash": "0x9aa6c9a5fb8ac904a8f7463c537a2e34375f05ed17832319fa5e60c478c15920"
+ },
+ {
+  "ts": "1784004072",
+  "side": "sell",
+  "margin_pct": 0.2433,
+  "slip_vs_quote_pct": -2.764,
+  "hash": "0x69ffe7eb612d0d31f405ce1b009d9ca1150c4fc78f8199be85fa587b5f84ba77"
+ },
+ {
+  "ts": "1784008169",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x6f562a56461a9d5dc97cd6ff7f239e9526a9138f43960bfd91fb0c0d716d227e"
+ },
+ {
+  "ts": "1784008176",
+  "side": "sell",
+  "margin_pct": 4.0582,
+  "slip_vs_quote_pct": 0.9365,
+  "hash": "0x07542f5bf2b2dbdc120b7b6722559577e15d8579d2185144a488cd86f9f32b14"
+ },
+ {
+  "ts": "1784008500",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xbf7af081fecc528a9e29202e3b3871b804a770c6bf11c365bb62f2d333b27c7a"
+ },
+ {
+  "ts": "1784008507",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xea412ff295f4588f34e310f4a6547e91b91b9c47c76c54307b22c25dcf3bb368"
+ },
+ {
+  "ts": "1784008512",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x11d18aec5e4e1bf104ad45f38291210b9ab31da1c5d8030c92809d4a41e1bccb"
+ },
+ {
+  "ts": "1784008535",
+  "side": "sell",
+  "margin_pct": 2.4195,
+  "slip_vs_quote_pct": -0.6531,
+  "hash": "0x42f1f7cb1ffb15667c62ca9709f6d44d97bf40a3936f98096a17e54797ff35a5"
+ },
+ {
+  "ts": "1784008834",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x35bb1abab8bd88773c45c8eb6814c2bd0d68d1eb627896772608038355eef8be"
+ },
+ {
+  "ts": "1784028744",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": -0.0,
+  "hash": "0x2b6edaf8f9d462edeeac9dcfe3b15b722e26d0964cd75e3e2c5f6b40afb0bede"
+ },
+ {
+  "ts": "1784028781",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xed0435cea7978f753fa212923d17d232bc8521cf688cb3a4906fcdde79981734"
+ },
+ {
+  "ts": "1784029400",
+  "side": "buy",
+  "margin_pct": 3.0428,
+  "slip_vs_quote_pct": -0.0485,
+  "hash": "0xd4a5ccc07c744dc28473274f85304cfa611cbedd9e9c06cffff55b2c4a5e227a"
+ },
+ {
+  "ts": "1784029460",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": -0.0,
+  "hash": "0x16ce6413799fe1fe0064046b118b62ad3fcf91a7519827b94f6bed616f4f65b5"
+ },
+ {
+  "ts": "1784029726",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x3c743671f4b0c4468aaa409a88e057156e897409f28ac2fc1ec58d49d093e0f6"
+ },
+ {
+  "ts": "1784029735",
+  "side": "sell",
+  "margin_pct": 2.06,
+  "slip_vs_quote_pct": -1.0018,
+  "hash": "0x8e3a5dc6d5c13b9b5de8beb2873505451d84984dbccbc78d385c0380e1e6d52f"
+ },
+ {
+  "ts": "1784030009",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xdee33d5c8a905ba85dc4a620d48e6d83a233e9fbad786ec2a9cbee1aed4c77ea"
+ },
+ {
+  "ts": "1784038965",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x317bf869aeec90c9f3d2ae9957c137a3d380ee622bce2929fc617fe878f9ea72"
+ },
+ {
+  "ts": "1784039018",
+  "side": "sell",
+  "margin_pct": 2.2498,
+  "slip_vs_quote_pct": -0.8177,
+  "hash": "0xd1bbdcf5b0b4a1ed84a64bcefb905be0c0ab61a3ec78dfb8595b602aa418c1dc"
+ },
+ {
+  "ts": "1784039190",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x8d66592bbd3a59317bfa681111fd7a17dfe54403a9724df718109f193a663337"
+ },
+ {
+  "ts": "1784040310",
+  "side": "buy",
+  "margin_pct": 4.3149,
+  "slip_vs_quote_pct": 1.1854,
+  "hash": "0x97916da84313f2371c2dea510ad4362ea09a67f2fb43e703072e85cf8429b9a3"
+ },
+ {
+  "ts": "1784040315",
+  "side": "sell",
+  "margin_pct": 2.9749,
+  "slip_vs_quote_pct": -0.1144,
+  "hash": "0x26d6b657b59bb412a1e79a94910b81dc8393f63e892e54f3d447527bee9b8fa9"
+ },
+ {
+  "ts": "1784040845",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": -0.0,
+  "hash": "0x50d93249f48d04b28bda235e16676332162353998cc466689113d7908bb20ab9"
+ },
+ {
+  "ts": "1784040863",
+  "side": "sell",
+  "margin_pct": 2.6914,
+  "slip_vs_quote_pct": -0.3894,
+  "hash": "0xb02ed61e13f8019ff047ccda290e8e600455912b1126b392d25e64f4bb33d64b"
+ },
+ {
+  "ts": "1784041753",
+  "side": "buy",
+  "margin_pct": 3.5422,
+  "slip_vs_quote_pct": 0.4359,
+  "hash": "0x5f154448a600a0d476f3830b08a9a92f1236f387df4c71ca4bd55a3a1e68adb6"
+ },
+ {
+  "ts": "1784042218",
+  "side": "sell",
+  "margin_pct": 3.2306,
+  "slip_vs_quote_pct": 0.1336,
+  "hash": "0xcad42be1d2609e8c6c31aa518b9e9ffcc737457e35d572c7b76510a3d1f844a7"
+ },
+ {
+  "ts": "1784042563",
+  "side": "buy",
+  "margin_pct": 3.0029,
+  "slip_vs_quote_pct": -0.0872,
+  "hash": "0xac2ffa97e909bb44faa00e44e71f49503d6162ad7e9095dba757cac6f2283a5c"
+ },
+ {
+  "ts": "1784042885",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": -0.0,
+  "hash": "0x01f4a47e6a68ea95e82fcec3c888fc311121ca9d6ccbe8c147aed5eac8833eac"
+ },
+ {
+  "ts": "1784042977",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x59071af03a7cd86e7bd2624a44dbdf7355f360d4c40b17e958974bccda925aa2"
+ },
+ {
+  "ts": "1784045489",
+  "side": "buy",
+  "margin_pct": 0.3416,
+  "slip_vs_quote_pct": -2.6686,
+  "hash": "0x6e4595c2123334ccbedc7b5253afd43d788cf008385553213b1720c1d4434ca2"
+ },
+ {
+  "ts": "1784045494",
+  "side": "sell",
+  "margin_pct": 6.7221,
+  "slip_vs_quote_pct": 3.5204,
+  "hash": "0x075934501710b2236e3c6b8e43338eba59e91da8d2b19144638ae332685315cc"
+ },
+ {
+  "ts": "1784045499",
+  "side": "sell",
+  "margin_pct": 3.7329,
+  "slip_vs_quote_pct": 0.6209,
+  "hash": "0x3d0e6c050f0034078727e486314b46c0731da781b5ed172b215e4e21f8dfa5f2"
+ },
+ {
+  "ts": "1784046279",
+  "side": "buy",
+  "margin_pct": 5.3518,
+  "slip_vs_quote_pct": 2.1912,
+  "hash": "0xac819b0f01f36065a43398a845ba15069c6c46e9750425e98fa1bc60a22a928c"
+ },
+ {
+  "ts": "1784046449",
+  "side": "sell",
+  "margin_pct": 2.6857,
+  "slip_vs_quote_pct": -0.3948,
+  "hash": "0x0c127846a236235e4b4f94daea7e071dd856ba52d16979753b1c89b1ff3bd2d7"
+ },
+ {
+  "ts": "1784046863",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": -0.0,
+  "hash": "0xb285bd023e83ccc67b63f02fcee47b878fbea6f5a37189cc86ee31011977f87b"
+ },
+ {
+  "ts": "1784047018",
+  "side": "sell",
+  "margin_pct": 3.1644,
+  "slip_vs_quote_pct": 0.0694,
+  "hash": "0x502444e557dfea0392d7421196e8eb0236eeb2d2c96b1478f5f68562e1f87a59"
+ },
+ {
+  "ts": "1784047516",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xdae2e83feb0d71fff40e89855aa63186c5ecc997769ebeee027b7dd5affba053"
+ },
+ {
+  "ts": "1784047764",
+  "side": "sell",
+  "margin_pct": 2.847,
+  "slip_vs_quote_pct": -0.2384,
+  "hash": "0xea91293b9b2dbb09fc2f50aa332445f0593d00397055e078023b1021e48b67ee"
+ },
+ {
+  "ts": "1784047936",
+  "side": "sell",
+  "margin_pct": 2.675,
+  "slip_vs_quote_pct": -0.4052,
+  "hash": "0x81178eb18ccae73f80437fd8fd0d1c2ab758dbdef1c531f19d9d8e4328a6cccf"
+ },
+ {
+  "ts": "1784048005",
+  "side": "sell",
+  "margin_pct": 3.3181,
+  "slip_vs_quote_pct": 0.2185,
+  "hash": "0xb4e037a3096e53d112965692e5418d14bc0d6c505c2aba301f65f8dbe433deb2"
+ },
+ {
+  "ts": "1784048310",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x673a2d7dae1ee95710a0c8ceeb33732669ff72fbba6cae3e005b23a4af13eef1"
+ },
+ {
+  "ts": "1784048621",
+  "side": "sell",
+  "margin_pct": 3.0357,
+  "slip_vs_quote_pct": -0.0554,
+  "hash": "0xc5c46dc28a057e2b87f882d23948dd8ed7d9c4caf3625af8815575ec0f24ac98"
+ },
+ {
+  "ts": "1784048633",
+  "side": "sell",
+  "margin_pct": 3.2487,
+  "slip_vs_quote_pct": 0.1513,
+  "hash": "0xf0b79eaefa091f9238e7b4f0a7a6a6f3d8c1da724253f7bea52500781305c455"
+ },
+ {
+  "ts": "1784048673",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xc1ca9ab47e73011ddf2391255c4c6d83a82e32f6c59242017acdfc5079837549"
+ },
+ {
+  "ts": "1784050666",
+  "side": "buy",
+  "margin_pct": 2.8768,
+  "slip_vs_quote_pct": -0.2095,
+  "hash": "0xf623cd6e0f916038e85b1d1e3eec54db50480e0a48651e70f50e1d4bb74120a8"
+ },
+ {
+  "ts": "1784050916",
+  "side": "sell",
+  "margin_pct": 0.3377,
+  "slip_vs_quote_pct": -2.6725,
+  "hash": "0x9dd3c3adb52891e16618fed79131910289c9943ddbc8d4971d0184112153942b"
+ },
+ {
+  "ts": "1784051522",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xbed81191f23d8423d5067a7dd6afcbd6f311df842b6491e6e322c0f164250dcf"
+ },
+ {
+  "ts": "1784054104",
+  "side": "buy",
+  "margin_pct": 2.1493,
+  "slip_vs_quote_pct": -0.9152,
+  "hash": "0xb3e735306777e5f7846e3d4738a15e4be5c6ef5ae58c3322d3f274db511adfde"
+ },
+ {
+  "ts": "1784054227",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xfc75e6b20095b519e6ff033f879d5c320b7ee23c3ff38c425dc40c4affb4f9bc"
+ },
+ {
+  "ts": "1784054262",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xdc769bd7e75d5ac48e03c6b0ab8e980b17e00384608b7263ad36c0ea85407dd0"
+ },
+ {
+  "ts": "1784055261",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x2a202f2322eaf11fdd876639e4eff4e73d4e4d3ff982f18c333bf14ba210ff4c"
+ },
+ {
+  "ts": "1784055304",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x9073be3d0f4c9907428d834f4080a482204c6cc7d4947e15c64a6ed199334c07"
+ },
+ {
+  "ts": "1784055751",
+  "side": "buy",
+  "margin_pct": 1.7195,
+  "slip_vs_quote_pct": -1.3321,
+  "hash": "0xef8c70004a51320ec7abd3e2617c6677242c6933d5038b42f26755202264f66b"
+ },
+ {
+  "ts": "1784055846",
+  "side": "sell",
+  "margin_pct": 3.1489,
+  "slip_vs_quote_pct": 0.0544,
+  "hash": "0x4856166116cc6741914385851a91b38b9d8a85843fd1ea7c7eb1b61b3b9a34ed"
+ },
+ {
+  "ts": "1784056577",
+  "side": "sell",
+  "margin_pct": 2.9917,
+  "slip_vs_quote_pct": -0.098,
+  "hash": "0xdfd8e0597ced45e6197e4d84fdedffd19906a4ed1acc58073b5b3ee3b1bb72d3"
+ },
+ {
+  "ts": "1784057378",
+  "side": "sell",
+  "margin_pct": 11.1111,
+  "slip_vs_quote_pct": 7.7778,
+  "hash": "0x6b54a1c1046447824dfbb26a5c1d2bc52201413f3a7cfb9115fcbf76cc1da133"
+ },
+ {
+  "ts": "1784063074",
+  "side": "buy",
+  "margin_pct": 3.001,
+  "slip_vs_quote_pct": -0.089,
+  "hash": "0x196f3bfb7caefce22a518e24046a60591c72f3a819dc23f2605db3999a621bd8"
+ },
+ {
+  "ts": "1784063109",
+  "side": "sell",
+  "margin_pct": 3.7126,
+  "slip_vs_quote_pct": 0.6012,
+  "hash": "0x304f7530ffb84ab650fdbe0b6c74249ce5d18a759e0d08f826374a5b4b3d0c7e"
+ },
+ {
+  "ts": "1784063162",
+  "side": "sell",
+  "margin_pct": 3.1669,
+  "slip_vs_quote_pct": 0.0719,
+  "hash": "0x1afed23f5fb6969b090ff75bb91f5d407e3e89ea2cc025b6814da8504a6ed0c7"
+ },
+ {
+  "ts": "1784063656",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xedaffb34bcf228c54d8b1a568d02d26d301b2bed20bd6bb3581875483a700b3d"
+ },
+ {
+  "ts": "1784063793",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x11c5bfdddb190a96312dcca035adc892690854aea1c2d8a094b8a593d5b664fa"
+ },
+ {
+  "ts": "1784064937",
+  "side": "buy",
+  "margin_pct": 0.6247,
+  "slip_vs_quote_pct": -2.394,
+  "hash": "0x8bddb91f41a2eabd7f6960e1e8fb29d952103828d941b720ec0950c187d703ae"
+ },
+ {
+  "ts": "1784065131",
+  "side": "sell",
+  "margin_pct": 1.6712,
+  "slip_vs_quote_pct": -1.3789,
+  "hash": "0xe2b9d40257a92f9842245247f15bc9f0674195c82bd65c29addebc5e5459d59d"
+ },
+ {
+  "ts": "1784065205",
+  "side": "sell",
+  "margin_pct": 6.1187,
+  "slip_vs_quote_pct": 2.9351,
+  "hash": "0x14ef2e0f4da0f09eee10dcd3375545f666348a839cb347f0b5539bf0cf34bdc5"
+ },
+ {
+  "ts": "1784065809",
+  "side": "buy",
+  "margin_pct": 3.6452,
+  "slip_vs_quote_pct": 0.5359,
+  "hash": "0x72d6f6ecd8de7c9b7e5619ce124e2600e2ce202b1d491f11829938579b0ec551"
+ },
+ {
+  "ts": "1784065885",
+  "side": "sell",
+  "margin_pct": 3.4312,
+  "slip_vs_quote_pct": 0.3283,
+  "hash": "0xc6b850566047f23e8f2bf0bf31735a52c5b8c7d07769412608fc59daa5f0d471"
+ },
+ {
+  "ts": "1784066130",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x56e8bfbfdb6dfdc719d70f007f76ecc491bbb59a7d783d515716be3353396763"
+ },
+ {
+  "ts": "1784066134",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x0c53fe5ecdde4600a30b44799dc0083de395789fed1bf1702832d0846586300f"
+ },
+ {
+  "ts": "1784066195",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x9dc673a2f9e5e980c69021180d1ed04ebff2ec91197c72c4cd125460561424c8"
+ },
+ {
+  "ts": "1784066215",
+  "side": "sell",
+  "margin_pct": 4.4679,
+  "slip_vs_quote_pct": 1.3339,
+  "hash": "0x572600949e86f09166a3d2afa1730cea65607cfb4dfc493a4ade2cc49adc8696"
+ },
+ {
+  "ts": "1784066218",
+  "side": "buy",
+  "margin_pct": 3.0747,
+  "slip_vs_quote_pct": -0.0176,
+  "hash": "0xcc030a3d159872ce2abf53aca4e01ae5b7dc2480f525f4ec6a2b93f2ffb7e8ad"
+ },
+ {
+  "ts": "1784066247",
+  "side": "sell",
+  "margin_pct": 1.72,
+  "slip_vs_quote_pct": -1.3316,
+  "hash": "0x7badf78b6bb31f2b2bbc7e9378f3a5d25abc609c43b06090fe8f877bf12b6e9f"
+ },
+ {
+  "ts": "1784066251",
+  "side": "sell",
+  "margin_pct": 1.8544,
+  "slip_vs_quote_pct": -1.2013,
+  "hash": "0x5aa4e4870f5a816bda6d993a89aa87b4ad39d9b39feb25b6c67eb439809dc21a"
+ },
+ {
+  "ts": "1784066476",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xd62398dfdcb54a4e5b5fda7800f26ba386b1c2b9f43ea2e6c51c3b3f32b58af7"
+ },
+ {
+  "ts": "1784066690",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xa61564da1c4c768df7afb3b8527fd5e5550a2bd3884c10aeb22f114359559f43"
+ },
+ {
+  "ts": "1784066739",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x1669e19ddcd946c3e57974b0204fedb29688317304d661b0cf5beabb998e0a2b"
+ },
+ {
+  "ts": "1784067837",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x1f4bc1a32eee657bff676a4ef200bc6484f2d1ea02ea2225becc00a7a3eef3d0"
+ },
+ {
+  "ts": "1784067864",
+  "side": "sell",
+  "margin_pct": 2.7818,
+  "slip_vs_quote_pct": -0.3016,
+  "hash": "0x2b611c1fb8f921829f15ff6d8e5b025ba9bb24576d655a1af929516a98bd59b8"
+ },
+ {
+  "ts": "1784068494",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x1d83e8c4f1b58db877426f44b75dc53a3bd51247a35a33aecce645571e79a844"
+ },
+ {
+  "ts": "1784068585",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x2db53dac92c538bf7522c9c75f2cb0c6a8afce5bc5b1676ff91b20977d070faf"
+ },
+ {
+  "ts": "1784068602",
+  "side": "sell",
+  "margin_pct": 3.6963,
+  "slip_vs_quote_pct": 0.5854,
+  "hash": "0x77f990d9d1df5a8d02bd6d94c8c997aae5d63af2df325ebd616b81b68919bab6"
+ },
+ {
+  "ts": "1784068626",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x99a5f9a38189304b23abbdc3633f1805f3f4177ff6154b6933ae3e262fea4494"
+ },
+ {
+  "ts": "1784070309",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x765eb1f834bd4649662dcf4157fa191d2de9929b339764a48360404fa642ff00"
+ },
+ {
+  "ts": "1784070327",
+  "side": "sell",
+  "margin_pct": 4.142,
+  "slip_vs_quote_pct": 1.0177,
+  "hash": "0x858164eb352c979272cffa173c48957eb361485b4eac1cf7337a902af656fdde"
+ },
+ {
+  "ts": "1784072422",
+  "side": "buy",
+  "margin_pct": 2.883,
+  "slip_vs_quote_pct": -0.2035,
+  "hash": "0x22466f2ee20bdab4c360e4307952aca24ce1c3c409f92cb1f94ed2a1d2140a53"
+ },
+ {
+  "ts": "1784072846",
+  "side": "sell",
+  "margin_pct": 3.0902,
+  "slip_vs_quote_pct": -0.0025,
+  "hash": "0xe0a256b0addb6005d431d406ac8c59a7b2550ebe58e205be5b2c1d46a8cffecf"
+ },
+ {
+  "ts": "1784085039",
+  "side": "buy",
+  "margin_pct": 3.2016,
+  "slip_vs_quote_pct": 0.1056,
+  "hash": "0xc0e35f2ad5956dceca28e6d5910edb65c2ef82eca4880653fae96ead4cd069f5"
+ },
+ {
+  "ts": "1784085207",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x0a35bd34f83f727aa75defa4afcefc6e486b3af11e662316b2faeaaf79487910"
+ },
+ {
+  "ts": "1784085415",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xca92a0b0c401bb2c94f5e177b318062e02f1c57195dc5ac13640cd66720dc67d"
+ },
+ {
+  "ts": "1784085420",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xf920e507afad29f4e3390e243340e24ab347fc52ead4d4336349eb749ea54b53"
+ },
+ {
+  "ts": "1784086725",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": -0.0,
+  "hash": "0xc1fd2f7342d7c5efb015c7939927a2824ba7ddcfe127a186f96a1cf40a121d95"
+ },
+ {
+  "ts": "1784086732",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x496c8d03baa14a8fe4c510cde659242e90a2c9c8bbd3f32ee1de962217f36343"
+ },
+ {
+  "ts": "1784087471",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": -0.0,
+  "hash": "0x818374180a31bf83b13a73a8a2a8942f3366df1a66a330440ad95c7ef0686695"
+ },
+ {
+  "ts": "1784087541",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": -0.0,
+  "hash": "0x04927cb7fda4cc931ac06b2551aa217e5bef5447ffc43cbc027c565998979d20"
+ },
+ {
+  "ts": "1784089743",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x945d1f25c2177d6a8c3c8b4c7ca4ca47d0003725bbd80d390b681dd7e3e66162"
+ },
+ {
+  "ts": "1784089790",
+  "side": "sell",
+  "margin_pct": 4.1632,
+  "slip_vs_quote_pct": 1.0383,
+  "hash": "0xa46c2460d66481efbf414ac851598b16feaf64fda7bc689d5579261610df9067"
+ },
+ {
+  "ts": "1784089876",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": -0.0,
+  "hash": "0x6b3083588e3a1bd605723b9994a69ab261beff3e2a269f309077c0fd87e5a4c3"
+ },
+ {
+  "ts": "1784089996",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x94529849590648653bb26dc00fa203c76f510468970f8904cab2fa74d301e6b0"
+ },
+ {
+  "ts": "1784090188",
+  "side": "sell",
+  "margin_pct": 3.4787,
+  "slip_vs_quote_pct": 0.3743,
+  "hash": "0x277b4cb486d3b678f58e00e6f257d091f61307f2d98aee120d6073ac14582008"
+ },
+ {
+  "ts": "1784090217",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xe1fde69f94380f273ac34ad08fdcff726c500b54c3c2dfffebb0fb3060269d52"
+ },
+ {
+  "ts": "1784090248",
+  "side": "sell",
+  "margin_pct": 0.5738,
+  "slip_vs_quote_pct": -2.4434,
+  "hash": "0x5bcf8682494dffe9303e8de27fc3969c6269cb6532bba2e702e5060dc1cca61f"
+ },
+ {
+  "ts": "1784090250",
+  "side": "sell",
+  "margin_pct": 3.3039,
+  "slip_vs_quote_pct": 0.2047,
+  "hash": "0x2acd222c17594adcda4ce8226104f7db06b83f8d7616c7d58154df92d191c0ab"
+ },
+ {
+  "ts": "1784090338",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x1e9fc1085ec0cf9692967558f10e8a7f95e2c7dbf004b7ea8cb975d9b368c3ec"
+ },
+ {
+  "ts": "1784090695",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x2dbc478d84dc4b591fd41e43375ce57ad758388eaf3a8b00af0da242648c7429"
+ },
+ {
+  "ts": "1784090795",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x718dd94b175de93417b9fcffe9f91895cdf8494e7d7aec6ecd65670b64170810"
+ },
+ {
+  "ts": "1784090953",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xd70ad34e46670b471043c36899257d3dc1da91423e33585fec58de5b205429d0"
+ },
+ {
+  "ts": "1784092426",
+  "side": "buy",
+  "margin_pct": 2.4412,
+  "slip_vs_quote_pct": -0.632,
+  "hash": "0xece489049a5b445d2f6b80a0815d372413d48f1a66c0afb018b3e6a852a519f7"
+ },
+ {
+  "ts": "1784092501",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x7fc0375694a3f75705b957b2bf0f7d7d7773f8be131ff41ff3aa1a24442124e0"
+ },
+ {
+  "ts": "1784092508",
+  "side": "sell",
+  "margin_pct": 3.1338,
+  "slip_vs_quote_pct": 0.0398,
+  "hash": "0xea338682e3b52b9feb4d9e043b31adf8beafb9110b9e6762da35ff5d8a22167d"
+ },
+ {
+  "ts": "1784092517",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x4ab75425b1491f798b2b2e8883caaaecaaa3f2f913f71406c99ace3bf04d919c"
+ },
+ {
+  "ts": "1784092736",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xaed98fa85ad1944bb1fbf51873ab4b3a3fbedcf095982ddd4f24c4dde31a8040"
+ },
+ {
+  "ts": "1784092741",
+  "side": "sell",
+  "margin_pct": 3.2386,
+  "slip_vs_quote_pct": 0.1415,
+  "hash": "0xfaa96500411eb07c7e15a92859b66a0d11ddedc52184fbd3bef74b4cbe505759"
+ },
+ {
+  "ts": "1784092863",
+  "side": "buy",
+  "margin_pct": 5.9154,
+  "slip_vs_quote_pct": 2.738,
+  "hash": "0xe00c88272600f72f8543b392cb85467f5bb3ca3a1beb8f5b4930ffc45932cf17"
+ },
+ {
+  "ts": "1784092997",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": -0.0,
+  "hash": "0x0b793b884a751f0315cb53df933e3b714fafacfb9ba3b91992dea3dc961b4a81"
+ },
+ {
+  "ts": "1784093023",
+  "side": "buy",
+  "margin_pct": 6.2812,
+  "slip_vs_quote_pct": 3.0928,
+  "hash": "0x37da08d0c5556433d5d2836026f425b839ae778b88e72745a394c59be579c60c"
+ },
+ {
+  "ts": "1784093193",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x37e96b85a42e356b106601c82198bb8552c1946eea4799d13dee118ed2030fcb"
+ },
+ {
+  "ts": "1784093209",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xdffc223d29a5e76cddc8d2b342b7cac3c38a3e51be09d0b30c8d4914c190a198"
+ },
+ {
+  "ts": "1784093261",
+  "side": "sell",
+  "margin_pct": 2.979,
+  "slip_vs_quote_pct": -0.1104,
+  "hash": "0xd9b9c7580e39dcb87bb9a042e741093c124e0c92bc0c300895b98801d22b226f"
+ },
+ {
+  "ts": "1784093263",
+  "side": "sell",
+  "margin_pct": 2.9223,
+  "slip_vs_quote_pct": -0.1653,
+  "hash": "0x3c8794cd8de0f7d72dc3bdce56fec9a4c1079c858ac61846a03d63557766572f"
+ },
+ {
+  "ts": "1784093271",
+  "side": "sell",
+  "margin_pct": 4.9446,
+  "slip_vs_quote_pct": 1.7962,
+  "hash": "0x9386124aad55d0a294fe81f7a8514700f0b6bf6966b89ff319ca740ef5839f96"
+ },
+ {
+  "ts": "1784093296",
+  "side": "buy",
+  "margin_pct": 3.0783,
+  "slip_vs_quote_pct": -0.014,
+  "hash": "0x4fe01f84a2e641c7064e20d38f9bc896c12f201d3e2009cb039b497606f1c1e9"
+ },
+ {
+  "ts": "1784093389",
+  "side": "sell",
+  "margin_pct": 4.4016,
+  "slip_vs_quote_pct": 1.2696,
+  "hash": "0xf9fd63d25ed60e3cc414e18871a29caef735c2268fae1bb1c90379c897097ac3"
+ },
+ {
+  "ts": "1784093444",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xfa5085a3151062a8791998119528f75005ed3b3d49063b0773355d6ad6dda40f"
+ },
+ {
+  "ts": "1784093607",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x4fee773df77384d472c2bc195b1ecc3f64805b53500ba3c14f32fd4d30d50624"
+ },
+ {
+  "ts": "1784094764",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xb293e131cc6c5b69fe70c062d4f7cee778ed4c8edb8651609392dde15daa8238"
+ },
+ {
+  "ts": "1784094934",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x115fa4df549f6a6415a0e996ca93236202a547012b91fbf320f5ba6d36b0287e"
+ },
+ {
+  "ts": "1784095057",
+  "side": "sell",
+  "margin_pct": 2.3261,
+  "slip_vs_quote_pct": -0.7437,
+  "hash": "0x02f5aef649b6ded4c9f81b77dffdf52d7dd040940108bb47c34b782b20bde389"
+ },
+ {
+  "ts": "1784095485",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xff38818232c221c4113f7b104d44159cd184b1e6dc4bb0bbf042a73873106444"
+ },
+ {
+  "ts": "1784097481",
+  "side": "buy",
+  "margin_pct": 21.3984,
+  "slip_vs_quote_pct": 17.7564,
+  "hash": "0x81c00d6f1ac671debcf962b3eb33778338a9616fb2c89d0db9f4fb4dc5693975"
+ },
+ {
+  "ts": "1784097484",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x29e12b3d67585aa3432061e9d4d4411ddda4144c9293e5023e150bd91de0b533"
+ },
+ {
+  "ts": "1784097563",
+  "side": "buy",
+  "margin_pct": 3.3918,
+  "slip_vs_quote_pct": 0.29,
+  "hash": "0x995204d0eb2c9d7cd7fc7abc9fdd9550db257b653807221e3a1c74cda0974358"
+ },
+ {
+  "ts": "1784097784",
+  "side": "sell",
+  "margin_pct": 0.4341,
+  "slip_vs_quote_pct": -2.5789,
+  "hash": "0x88e29b97170b3ae71dc46f6549cb44ab8c79d73b98b478d05f2dd08a51c4b4a9"
+ },
+ {
+  "ts": "1784097902",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": -0.0,
+  "hash": "0xe18031216c38d2434f50b008ad617f4e68432c5d4e2eee4400c809e72fd9b4e9"
+ },
+ {
+  "ts": "1784098054",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x16341584f17eb06b0ea20c714ef29d3d542f1961b6ad44202e9ec15814e2f841"
+ },
+ {
+  "ts": "1784098290",
+  "side": "buy",
+  "margin_pct": 3.2292,
+  "slip_vs_quote_pct": 0.1323,
+  "hash": "0xc5d64520289c9186a30b07ce5a64666a67d3f90aa9c378c99aacc9a16a3e2e00"
+ },
+ {
+  "ts": "1784098346",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x4c6a11ade9abac1cf498672c5bead86149e1b604949fcd3a684025474fc00634"
+ },
+ {
+  "ts": "1784098535",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xc47afcea96e95a25c6af42645c40d074513902fbdc5af005d0847595f9ebd1ac"
+ },
+ {
+  "ts": "1784098674",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x3b1d7860a9658b39f2f7e96c2264c437be0a85eca762a6c2a4c4e2e3974d53c9"
+ },
+ {
+  "ts": "1784099219",
+  "side": "buy",
+  "margin_pct": 3.4609,
+  "slip_vs_quote_pct": 0.3571,
+  "hash": "0xb4eccbc0c23ae5c3fd9d4e297fbd71afa46404df5436eaa6b207ab16f075cce8"
+ },
+ {
+  "ts": "1784099407",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xfab6c5e05bc77cf02f6ad0b53bd4697cf00b6164fd120e77070d4473831e1aeb"
+ },
+ {
+  "ts": "1784099716",
+  "side": "sell",
+  "margin_pct": 3.755,
+  "slip_vs_quote_pct": 0.6424,
+  "hash": "0x19122aec462a6137147543bc08a592c13945a16ca6a10665f4b6029d426a859b"
+ },
+ {
+  "ts": "1784099827",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x1c64fa57f76843772a92c9772bc64e007456bdd4ae301f5e3291fff945f2bbf5"
+ },
+ {
+  "ts": "1784100735",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x08e13026a35de3b244b5311f97fd21f2ce5451432439a98f93a389873c8a2431"
+ },
+ {
+  "ts": "1784100849",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xfed6556e63f1cf7316f6eee414d9334b141bef8b31a7bf4574fa2e46d7e9033c"
+ },
+ {
+  "ts": "1784101268",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xaf8a38bdba62900813df0cd503b9eb2f72a08c2124104a81d9aa8d5edc25b17d"
+ },
+ {
+  "ts": "1784101911",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xd963f058788f2bdbf71f8beaddb72ce2139cc593d902df7b90cbd04b7c9be420"
+ },
+ {
+  "ts": "1784109007",
+  "side": "buy",
+  "margin_pct": 0.5488,
+  "slip_vs_quote_pct": -2.4677,
+  "hash": "0x92e58543b2ce1652ec0b9f72d98749d7f67d6babb31a991eaf4d0ac0713909c6"
+ },
+ {
+  "ts": "1784109154",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x1d280fa8d0174e53cc7c5e3ce35d42ffbeaf2df9857ac5aca320d5fa35031622"
+ },
+ {
+  "ts": "1784109239",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x113625c772ab4cf6da380f9abcc96f1aea49ce473683db028d098a40a1a82adb"
+ },
+ {
+  "ts": "1784109985",
+  "side": "buy",
+  "margin_pct": 3.083,
+  "slip_vs_quote_pct": -0.0095,
+  "hash": "0xbd4e6b73cccdb3adeefc35eba2d6744e65c79a1f2805c2769e75ff61ff27a974"
+ },
+ {
+  "ts": "1784111143",
+  "side": "sell",
+  "margin_pct": 3.0951,
+  "slip_vs_quote_pct": 0.0023,
+  "hash": "0x67ac6ee1f30567d16370062a99afa6a2f6cbd00735dbbe821b1ff54f0d2fa307"
+ },
+ {
+  "ts": "1784111204",
+  "side": "buy",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x6f197a477cb9dec4e1fc79d639c91005d07bf804d8c0ab06a4fa4656259fe513"
+ },
+ {
+  "ts": "1784111478",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0xf9207e8d9ecc9bdc2f046ef83926f8e00bd79653b1e508151a0479020acbf31f"
+ },
+ {
+  "ts": "1784113892",
+  "side": "buy",
+  "margin_pct": 3.0827,
+  "slip_vs_quote_pct": -0.0097,
+  "hash": "0x7bff8e96291e91ed570a143071f2aa2ca3b05724b37f3ecfc4b9dc1b644a4cf8"
+ },
+ {
+  "ts": "1784114061",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": -0.0,
+  "hash": "0x7e42bbd7b4efff5285e04e37e3e823f0334523954f8ec0fa2a917b4760c636b2"
+ },
+ {
+  "ts": "1784114349",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x7cbcb7f9188be5d2fbfcbeca6b30e09ac526d95fb06cc1be653c4521baff73c8"
+ },
+ {
+  "ts": "1784114560",
+  "side": "sell",
+  "margin_pct": 3.0928,
+  "slip_vs_quote_pct": 0.0,
+  "hash": "0x096f3c3ce2589b5506d44f30d5b906b618b2fe07402c5a54422ba3521e369cb0"
+ }
+]

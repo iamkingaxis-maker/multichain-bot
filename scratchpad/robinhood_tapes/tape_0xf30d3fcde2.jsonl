@@ -1,0 +1,11 @@
+{"kind":"buy","volume_usd":18.2,"ts":"2026-07-17T05:37:02+00:00","maker":"0x0463d69d59d7e68f36adc0a979a5dabfe16876bf","pair":"0xf30d3fcde27928d5b69c06de88a47403e362f4fc","sym":"KARMA","lag_secs":4.85}
+{"kind":"buy","volume_usd":98.83,"ts":"2026-07-17T05:37:19+00:00","maker":"0x7e32cdda83d1f0f7e63b6ea9308574e5c1837fc4","pair":"0xf30d3fcde27928d5b69c06de88a47403e362f4fc","sym":"KARMA","lag_secs":14.95}
+{"kind":"buy","volume_usd":905.46,"ts":"2026-07-17T05:37:25+00:00","maker":"0x2f9c31568fa0560998cdb3a1be2036ed6b9e30b2","pair":"0xf30d3fcde27928d5b69c06de88a47403e362f4fc","sym":"KARMA","lag_secs":8.95}
+{"kind":"buy","volume_usd":219.51,"ts":"2026-07-17T05:37:31+00:00","maker":"0xc384e71a0bfd8857fa9b2caaf94571c2f5391000","pair":"0xf30d3fcde27928d5b69c06de88a47403e362f4fc","sym":"KARMA","lag_secs":2.95}
+{"kind":"buy","volume_usd":274.38,"ts":"2026-07-17T05:37:45+00:00","maker":"0x3b40570c732c3d13998ccb8db1a95efa4a64ba4a","pair":"0xf30d3fcde27928d5b69c06de88a47403e362f4fc","sym":"KARMA","lag_secs":5.58}
+{"kind":"buy","volume_usd":181.09,"ts":"2026-07-17T05:38:58+00:00","maker":"0x27726617b5b22f20c6e6ec82f4fae68ddeca0e6c","pair":"0xf30d3fcde27928d5b69c06de88a47403e362f4fc","sym":"KARMA","lag_secs":10.94}
+{"kind":"buy","volume_usd":90.55,"ts":"2026-07-17T05:39:00+00:00","maker":"0x05c1caf7030d01e6cdcca91466b18a9a748ee408","pair":"0xf30d3fcde27928d5b69c06de88a47403e362f4fc","sym":"KARMA","lag_secs":8.94}
+{"kind":"buy","volume_usd":146.68,"ts":"2026-07-17T05:39:00+00:00","maker":"0x661334a3dabd54c6f06d9ddceb53cc7a79fbbff6","pair":"0xf30d3fcde27928d5b69c06de88a47403e362f4fc","sym":"KARMA","lag_secs":8.94}
+{"kind":"buy","volume_usd":181.09,"ts":"2026-07-17T05:39:04+00:00","maker":"0x6bbdc6902c093e7a5ca3194669b08c792052779e","pair":"0xf30d3fcde27928d5b69c06de88a47403e362f4fc","sym":"KARMA","lag_secs":4.94}
+{"kind":"buy","volume_usd":61.57,"ts":"2026-07-17T05:39:08+00:00","maker":"0x5ab37579741aa0df198332dae8cb221c9a432c98","pair":"0xf30d3fcde27928d5b69c06de88a47403e362f4fc","sym":"KARMA","lag_secs":11.28}
+{"kind":"buy","volume_usd":396.21,"ts":"2026-07-17T05:40:14+00:00","maker":"0x220a8e15a493be33964b5ca6538e58f8d3d29c7d","pair":"0xf30d3fcde27928d5b69c06de88a47403e362f4fc","sym":"KARMA","lag_secs":14.31}

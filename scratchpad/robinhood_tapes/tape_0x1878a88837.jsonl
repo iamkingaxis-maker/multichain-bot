@@ -1,0 +1,9 @@
+{"kind":"buy","volume_usd":181.84,"ts":"2026-07-17T21:40:08+00:00","maker":"0xa560a3b7e1aa9c961f458f41b33306ccbb22fdb0","pair":"0x1878a888379f03f2e6771763e283984b0d872427","sym":"HOTEL","lag_secs":6.89}
+{"kind":"buy","volume_usd":9.86,"ts":"2026-07-17T21:40:40+00:00","maker":"0x06a41e3b43f7da57a7999ba935eab3d24aac7781","pair":"0x1878a888379f03f2e6771763e283984b0d872427","sym":"HOTEL","lag_secs":2.59}
+{"kind":"sell","volume_usd":61.93,"ts":"2026-07-17T21:40:58+00:00","maker":"0xdd64f6e7facec9efb905cfa21c8242b3e7ab0dcd","pair":"0x1878a888379f03f2e6771763e283984b0d872427","sym":"HOTEL","lag_secs":4.1}
+{"kind":"sell","volume_usd":30.24,"ts":"2026-07-17T21:40:58+00:00","maker":"0xdd64f6e7facec9efb905cfa21c8242b3e7ab0dcd","pair":"0x1878a888379f03f2e6771763e283984b0d872427","sym":"HOTEL","lag_secs":4.1}
+{"kind":"sell","volume_usd":31.3,"ts":"2026-07-17T21:40:58+00:00","maker":"0xb621560405d9d48133d9dca9c29e6093f73eec97","pair":"0x1878a888379f03f2e6771763e283984b0d872427","sym":"HOTEL","lag_secs":4.1}
+{"kind":"sell","volume_usd":8.96,"ts":"2026-07-17T21:40:58+00:00","maker":"0xc306ea86ab86eb583262659453257acb2abc1fe0","pair":"0x1878a888379f03f2e6771763e283984b0d872427","sym":"HOTEL","lag_secs":4.1}
+{"kind":"sell","volume_usd":29.51,"ts":"2026-07-17T21:40:58+00:00","maker":"0xc306ea86ab86eb583262659453257acb2abc1fe0","pair":"0x1878a888379f03f2e6771763e283984b0d872427","sym":"HOTEL","lag_secs":4.1}
+{"kind":"sell","volume_usd":48.08,"ts":"2026-07-17T21:41:07+00:00","maker":"0xbe66d573274a7d4803e5ee3639212f0185c9dae5","pair":"0x1878a888379f03f2e6771763e283984b0d872427","sym":"HOTEL","lag_secs":1.1}
+{"kind":"buy","volume_usd":0.0,"ts":"2026-07-17T21:42:39+00:00","maker":"0x301223065ad8cdc0356d205f2c4e6db1c72c7ac6","pair":"0x1878a888379f03f2e6771763e283984b0d872427","sym":"HOTEL","lag_secs":1.9}

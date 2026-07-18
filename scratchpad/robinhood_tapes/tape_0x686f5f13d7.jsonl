@@ -1,0 +1,14 @@
+{"kind":"buy","volume_usd":42.55,"ts":"2026-07-17T03:26:51+00:00","maker":"0x4688e9c587536c280eff465dce416ac92421688b","pair":"0x686f5f13d771fdf6611fba42cbb65244d6675f4c","sym":"TOONZ","lag_secs":2.07}
+{"kind":"buy","volume_usd":20.05,"ts":"2026-07-17T03:27:07+00:00","maker":"0x972da80406afb801b48367506c9c527c54958ead","pair":"0x686f5f13d771fdf6611fba42cbb65244d6675f4c","sym":"TOONZ","lag_secs":2.57}
+{"kind":"buy","volume_usd":12.39,"ts":"2026-07-17T03:27:23+00:00","maker":"0x00c4b4a61ec72563ee38b6342f58f5582a014546","pair":"0x686f5f13d771fdf6611fba42cbb65244d6675f4c","sym":"TOONZ","lag_secs":3.12}
+{"kind":"buy","volume_usd":3.83,"ts":"2026-07-17T03:28:47+00:00","maker":"0x3294f2ce923f4c702313f7a2689ddd447f4d2ffb","pair":"0x686f5f13d771fdf6611fba42cbb65244d6675f4c","sym":"TOONZ","lag_secs":6.88}
+{"kind":"buy","volume_usd":7.5,"ts":"2026-07-17T03:29:05+00:00","maker":"0xb2cfd1aa51eeb4b82569b7643f8dbd3a145a6ff2","pair":"0x686f5f13d771fdf6611fba42cbb65244d6675f4c","sym":"TOONZ","lag_secs":7.4}
+{"kind":"buy","volume_usd":2.02,"ts":"2026-07-17T03:29:22+00:00","maker":"0xd71dd5585d35e3c382d7f87c107b704e11b7febd","pair":"0x686f5f13d771fdf6611fba42cbb65244d6675f4c","sym":"TOONZ","lag_secs":9.41}
+{"kind":"buy","volume_usd":2.72,"ts":"2026-07-17T03:29:39+00:00","maker":"0xe5575f26d0bcdf185a2449db44e0c8155c977617","pair":"0x686f5f13d771fdf6611fba42cbb65244d6675f4c","sym":"TOONZ","lag_secs":7.81}
+{"kind":"buy","volume_usd":14.73,"ts":"2026-07-17T03:29:53+00:00","maker":"0x0598e41ac6e8ad30bab36ee54b165444796494dc","pair":"0x686f5f13d771fdf6611fba42cbb65244d6675f4c","sym":"TOONZ","lag_secs":6.57}
+{"kind":"buy","volume_usd":3.24,"ts":"2026-07-17T03:30:09+00:00","maker":"0xf09deee8d907bde7a2165c6521a0282f6a8d40ad","pair":"0x686f5f13d771fdf6611fba42cbb65244d6675f4c","sym":"TOONZ","lag_secs":4.98}
+{"kind":"buy","volume_usd":1.68,"ts":"2026-07-17T03:30:25+00:00","maker":"0x61b371281e5d9465a6acef61c8412cc0a5ef4361","pair":"0x686f5f13d771fdf6611fba42cbb65244d6675f4c","sym":"TOONZ","lag_secs":2.3}
+{"kind":"buy","volume_usd":4.18,"ts":"2026-07-17T03:30:40+00:00","maker":"0xb69a1350f98be1250f457520958061df07c58d7f","pair":"0x686f5f13d771fdf6611fba42cbb65244d6675f4c","sym":"TOONZ","lag_secs":2.23}
+{"kind":"buy","volume_usd":4.24,"ts":"2026-07-17T03:30:55+00:00","maker":"0x4688e9c587536c280eff465dce416ac92421688b","pair":"0x686f5f13d771fdf6611fba42cbb65244d6675f4c","sym":"TOONZ","lag_secs":2.25}
+{"kind":"buy","volume_usd":1.99,"ts":"2026-07-17T03:31:10+00:00","maker":"0x972da80406afb801b48367506c9c527c54958ead","pair":"0x686f5f13d771fdf6611fba42cbb65244d6675f4c","sym":"TOONZ","lag_secs":1.58}
+{"kind":"buy","volume_usd":0.0,"ts":"2026-07-17T03:36:20+00:00","maker":"0x301223065ad8cdc0356d205f2c4e6db1c72c7ac6","pair":"0x686f5f13d771fdf6611fba42cbb65244d6675f4c","sym":"TOONZ","lag_secs":2.22}

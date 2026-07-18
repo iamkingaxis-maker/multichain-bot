@@ -1,0 +1,16 @@
+{"kind":"buy","volume_usd":449.91,"ts":"2026-07-17T22:34:50+00:00","maker":"0xd76935f7e93108f8e41ff2c462119e488621de2c","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":1.58}
+{"kind":"sell","volume_usd":114.27,"ts":"2026-07-17T22:34:52+00:00","maker":"0x42b4a6a5f422b1095a38aff4c237c1195e9143f4","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":2.58}
+{"kind":"buy","volume_usd":96.15,"ts":"2026-07-17T22:34:52+00:00","maker":"0xccc684f8a02d50e2b20991b22c2a8740b31808ed","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":2.58}
+{"kind":"sell","volume_usd":3.47,"ts":"2026-07-17T22:34:54+00:00","maker":"0x6e72ca950775f9381f82d6eb06ed27f595f2b1d9","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":2.1}
+{"kind":"buy","volume_usd":164.92,"ts":"2026-07-17T22:34:55+00:00","maker":"0xa3db7d6386bf0a223e9a98b916dece389085e02a","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":2.6}
+{"kind":"buy","volume_usd":37.58,"ts":"2026-07-17T22:34:58+00:00","maker":"0x1c94eff7ad14358bcd1e0b3baef94b5a5fb5bbbf","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":2.6}
+{"kind":"sell","volume_usd":13.71,"ts":"2026-07-17T22:34:59+00:00","maker":"0x42b4a6a5f422b1095a38aff4c237c1195e9143f4","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":3.12}
+{"kind":"buy","volume_usd":73.63,"ts":"2026-07-17T22:35:01+00:00","maker":"0xfbae59d731f46b5f52b3cb4f716bb81c86dfe770","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":5.57}
+{"kind":"sell","volume_usd":195.74,"ts":"2026-07-17T22:35:03+00:00","maker":"0x7b5c3ed7472b65953eb91e3780999813d2ba8e8b","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":3.57}
+{"kind":"buy","volume_usd":146.95,"ts":"2026-07-17T22:35:03+00:00","maker":"0xc8abe77da874e049eed85eedacbc200a07c515d1","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":3.57}
+{"kind":"sell","volume_usd":174.83,"ts":"2026-07-17T22:35:05+00:00","maker":"0x8f8763e650c0b6b15b2ded94868f2355a8d868e7","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":1.57}
+{"kind":"buy","volume_usd":122.78,"ts":"2026-07-17T22:35:06+00:00","maker":"0xde2e42e2908656bb799ce8d31701cbb372bfe6bc","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":2.08}
+{"kind":"sell","volume_usd":0.28,"ts":"2026-07-17T22:35:08+00:00","maker":"0x6e72ca950775f9381f82d6eb06ed27f595f2b1d9","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":1.54}
+{"kind":"buy","volume_usd":27.21,"ts":"2026-07-17T22:35:09+00:00","maker":"0xc31b8620c450d400f9231c63d7eeb381ce80c495","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":2.07}
+{"kind":"buy","volume_usd":194.11,"ts":"2026-07-17T22:35:11+00:00","maker":"0x6684adf4f07db6c160eebe9c5ca97af82f6f868c","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":1.55}
+{"kind":"buy","volume_usd":9.07,"ts":"2026-07-17T22:35:12+00:00","maker":"0xd82ceece8657adc33a734f0284ee7ec104939242","pair":"0x4c2af2358b7c820853ad05dd80b071cb81414134","sym":"KimiClaude","lag_secs":2.05}

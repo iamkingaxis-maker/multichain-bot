@@ -1,0 +1,3 @@
+{"kind":"buy","volume_usd":0.02,"ts":"2026-07-17T22:06:11+00:00","maker":"0x733bc5973b82e9647a4b7f5f62a066fd6140bece","pair":"0x5ad1a0be89594b5ceea6c8edd210af1cac73c94a","sym":"CASHPEPE","lag_secs":3.63}
+{"kind":"sell","volume_usd":555.25,"ts":"2026-07-17T22:07:47+00:00","maker":"0x9c33bc4f9c49b8cdfc23e2afc55b8e1d49d509e8","pair":"0x5ad1a0be89594b5ceea6c8edd210af1cac73c94a","sym":"CASHPEPE","lag_secs":7.54}
+{"kind":"buy","volume_usd":0.0,"ts":"2026-07-17T22:09:48+00:00","maker":"0x301223065ad8cdc0356d205f2c4e6db1c72c7ac6","pair":"0x5ad1a0be89594b5ceea6c8edd210af1cac73c94a","sym":"CASHPEPE","lag_secs":2.07}

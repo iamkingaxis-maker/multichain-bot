@@ -1,0 +1,11 @@
+{"kind":"sell","volume_usd":3.63,"ts":"2026-07-17T02:49:04+00:00","maker":"0x5de35db2c8d70abc1d10c31e3347347127a90895","pair":"0x63e99e34a8a040f88f31f48f8262ce76956e4190","sym":"REDDIT","lag_secs":6.44}
+{"kind":"sell","volume_usd":106.34,"ts":"2026-07-17T02:49:04+00:00","maker":"0x243a17063102c29fb60aa930db199d4b73ab8a37","pair":"0x63e99e34a8a040f88f31f48f8262ce76956e4190","sym":"REDDIT","lag_secs":6.44}
+{"kind":"sell","volume_usd":115.3,"ts":"2026-07-17T03:16:33+00:00","maker":"0x243a17063102c29fb60aa930db199d4b73ab8a37","pair":"0x63e99e34a8a040f88f31f48f8262ce76956e4190","sym":"REDDIT","lag_secs":2.57}
+{"kind":"sell","volume_usd":36.36,"ts":"2026-07-17T03:18:21+00:00","maker":"0xd3995903169b36a1b359c7e04f258841645ce854","pair":"0x63e99e34a8a040f88f31f48f8262ce76956e4190","sym":"REDDIT","lag_secs":2.4}
+{"kind":"sell","volume_usd":37.14,"ts":"2026-07-17T03:18:21+00:00","maker":"0xf837a2aefbba2e6243130a314ca32f4e09e2922a","pair":"0x63e99e34a8a040f88f31f48f8262ce76956e4190","sym":"REDDIT","lag_secs":2.4}
+{"kind":"buy","volume_usd":1.86,"ts":"2026-07-17T03:29:20+00:00","maker":"0xabb2acd3be814a80e502575d6c1dc5f789e9cd10","pair":"0x63e99e34a8a040f88f31f48f8262ce76956e4190","sym":"REDDIT","lag_secs":2.53}
+{"kind":"sell","volume_usd":2.37,"ts":"2026-07-17T03:29:34+00:00","maker":"0x433702948d7be4201a2bcee6c349ad807c547a5d","pair":"0x63e99e34a8a040f88f31f48f8262ce76956e4190","sym":"REDDIT","lag_secs":5.51}
+{"kind":"sell","volume_usd":1.57,"ts":"2026-07-17T05:37:15+00:00","maker":"0x65050a9b7e5075a2ba5ced7b1b64ee66262c40dc","pair":"0x63e99e34a8a040f88f31f48f8262ce76956e4190","sym":"REDDIT","lag_secs":18.95}
+{"kind":"buy","volume_usd":124.33,"ts":"2026-07-17T05:51:57+00:00","maker":"0x7302362bb0bc597ed70bc67aa294a247e9fb28e4","pair":"0x63e99e34a8a040f88f31f48f8262ce76956e4190","sym":"REDDIT","lag_secs":9.56}
+{"kind":"sell","volume_usd":4.26,"ts":"2026-07-17T06:08:53+00:00","maker":"0x4337021d22bcd0775a0fd1b4a6665051dc15d995","pair":"0x63e99e34a8a040f88f31f48f8262ce76956e4190","sym":"REDDIT","lag_secs":2.1}
+{"kind":"sell","volume_usd":9.2,"ts":"2026-07-17T06:08:53+00:00","maker":"0x4337021d22bcd0775a0fd1b4a6665051dc15d995","pair":"0x63e99e34a8a040f88f31f48f8262ce76956e4190","sym":"REDDIT","lag_secs":2.1}

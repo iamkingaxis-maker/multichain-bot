@@ -1,0 +1,14 @@
+{
+ "snapshots": 14,
+ "flips": [
+  {
+   "state": "OFF",
+   "bot": "rh_slcut_agedhold",
+   "hours": 22.0,
+   "usd": -8.87,
+   "t0": "2026-07-17T20:32"
+  }
+ ],
+ "armed_usd": 0.0,
+ "off_usd": -8.87
+}

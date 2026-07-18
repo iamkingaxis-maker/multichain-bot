@@ -1,0 +1,9 @@
+{"kind":"sell","volume_usd":120.46,"ts":"2026-07-17T05:55:11+00:00","maker":"0xf620cea6ec90d0ccc828810d4e6c45359a9c62c2","pair":"0xe345a16f477dcf12bf93a90803bc94c0c4d03d82","sym":"FORGE","lag_secs":5.27}
+{"kind":"sell","volume_usd":59.86,"ts":"2026-07-17T05:55:26+00:00","maker":"0xf620cea6ec90d0ccc828810d4e6c45359a9c62c2","pair":"0xe345a16f477dcf12bf93a90803bc94c0c4d03d82","sym":"FORGE","lag_secs":5.04}
+{"kind":"buy","volume_usd":5.46,"ts":"2026-07-17T05:55:27+00:00","maker":"0x76405bb254aa544a535095aac8a09ad3bab009e5","pair":"0xe345a16f477dcf12bf93a90803bc94c0c4d03d82","sym":"FORGE","lag_secs":4.04}
+{"kind":"sell","volume_usd":174.49,"ts":"2026-07-17T05:55:30+00:00","maker":"0x0bbaf9ddcf7775231aadb8ef87618619efa53404","pair":"0xe345a16f477dcf12bf93a90803bc94c0c4d03d82","sym":"FORGE","lag_secs":5.9}
+{"kind":"sell","volume_usd":122.51,"ts":"2026-07-17T05:55:32+00:00","maker":"0xac19b00419a720100ad9d164bd8c18a815f804a8","pair":"0xe345a16f477dcf12bf93a90803bc94c0c4d03d82","sym":"FORGE","lag_secs":3.9}
+{"kind":"buy","volume_usd":2.4,"ts":"2026-07-17T05:55:45+00:00","maker":"0x26d4d0ec1064c2f3bee109d0de055e53dd77ec8c","pair":"0xe345a16f477dcf12bf93a90803bc94c0c4d03d82","sym":"FORGE","lag_secs":2.12}
+{"kind":"sell","volume_usd":112.82,"ts":"2026-07-17T05:55:50+00:00","maker":"0xf620cea6ec90d0ccc828810d4e6c45359a9c62c2","pair":"0xe345a16f477dcf12bf93a90803bc94c0c4d03d82","sym":"FORGE","lag_secs":1.56}
+{"kind":"sell","volume_usd":26.7,"ts":"2026-07-17T05:56:10+00:00","maker":"0x5b474138ec973961d9d110b150ae20857f0cc0d8","pair":"0xe345a16f477dcf12bf93a90803bc94c0c4d03d82","sym":"FORGE","lag_secs":1.77}
+{"kind":"buy","volume_usd":0.0,"ts":"2026-07-17T05:59:35+00:00","maker":"0x301223065ad8cdc0356d205f2c4e6db1c72c7ac6","pair":"0xe345a16f477dcf12bf93a90803bc94c0c4d03d82","sym":"FORGE","lag_secs":3.1}

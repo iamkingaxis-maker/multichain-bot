@@ -1,0 +1,11 @@
+{"kind":"buy","volume_usd":3.11,"ts":"2026-07-17T21:52:39+00:00","maker":"0xa67d7eb4dc68fa6ce8e34ef8cadaf075b9893fbb","pair":"0x1c660b3522ad75695c66b113da801b4e2ccfe324","sym":"PEPECASH","lag_secs":1.5}
+{"kind":"buy","volume_usd":2.34,"ts":"2026-07-17T21:58:46+00:00","maker":"0xf142aa33d2ac19efc828bc33e3f3245b093e19d8","pair":"0x1c660b3522ad75695c66b113da801b4e2ccfe324","sym":"PEPECASH","lag_secs":5.77}
+{"kind":"buy","volume_usd":4.81,"ts":"2026-07-17T22:00:46+00:00","maker":"0xb92fe925dc43a0ecde6c8b1a2709c170ec4fff4f","pair":"0x1c660b3522ad75695c66b113da801b4e2ccfe324","sym":"PEPECASH","lag_secs":10.55}
+{"kind":"buy","volume_usd":181.63,"ts":"2026-07-17T22:04:06+00:00","maker":"0x1487ffd48ebc68e9d02ea00436f3462b1c7d0fc0","pair":"0x1c660b3522ad75695c66b113da801b4e2ccfe324","sym":"PEPECASH","lag_secs":10.57}
+{"kind":"buy","volume_usd":4.23,"ts":"2026-07-17T22:11:20+00:00","maker":"0x56c262027e0de4aea31d2489529cb25d23e58a8b","pair":"0x1c660b3522ad75695c66b113da801b4e2ccfe324","sym":"PEPECASH","lag_secs":1.58}
+{"kind":"buy","volume_usd":1.73,"ts":"2026-07-17T22:11:33+00:00","maker":"0xabb2acd3be814a80e502575d6c1dc5f789e9cd10","pair":"0x1c660b3522ad75695c66b113da801b4e2ccfe324","sym":"PEPECASH","lag_secs":2.09}
+{"kind":"sell","volume_usd":3318.26,"ts":"2026-07-17T22:28:06+00:00","maker":"0x7c0337d3f579a568ee1d6c1fc3a6e2a8b5fb882c","pair":"0x1c660b3522ad75695c66b113da801b4e2ccfe324","sym":"PEPECASH","lag_secs":3.04}
+{"kind":"sell","volume_usd":0.0,"ts":"2026-07-17T22:28:07+00:00","maker":"0xcf848faaaf8ed05aebb788d802ff5bd2d1b78253","pair":"0x1c660b3522ad75695c66b113da801b4e2ccfe324","sym":"PEPECASH","lag_secs":2.04}
+{"kind":"sell","volume_usd":0.0,"ts":"2026-07-17T22:28:07+00:00","maker":"0x2cc6d83a72267a92c1e1b4da8f9edf94c3b26a66","pair":"0x1c660b3522ad75695c66b113da801b4e2ccfe324","sym":"PEPECASH","lag_secs":2.04}
+{"kind":"buy","volume_usd":0.18,"ts":"2026-07-17T22:29:11+00:00","maker":"0xfe93a86ac9d0f724f83d3d8ac93717e30fae4f50","pair":"0x1c660b3522ad75695c66b113da801b4e2ccfe324","sym":"PEPECASH","lag_secs":1.07}
+{"kind":"sell","volume_usd":0.0,"ts":"2026-07-17T22:39:53+00:00","maker":"0xf142aa33d2ac19efc828bc33e3f3245b093e19d8","pair":"0x1c660b3522ad75695c66b113da801b4e2ccfe324","sym":"PEPECASH","lag_secs":2.43}

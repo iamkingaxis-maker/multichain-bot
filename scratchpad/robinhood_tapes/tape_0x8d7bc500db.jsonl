@@ -1,0 +1,12 @@
+{"kind":"buy","volume_usd":4.59,"ts":"2026-07-17T04:47:57+00:00","maker":"0x4b5eda0c06a8c99aee140f215e451ea5ba9c152f","pair":"0x8d7bc500db4f2675d0178787fddf3bcff59201f0","sym":"microagi","lag_secs":4.41}
+{"kind":"sell","volume_usd":987.01,"ts":"2026-07-17T04:47:57+00:00","maker":"0x6c7c6577c7d27a959c90227d8175573f0a56f299","pair":"0x8d7bc500db4f2675d0178787fddf3bcff59201f0","sym":"microagi","lag_secs":4.41}
+{"kind":"buy","volume_usd":165.38,"ts":"2026-07-17T04:47:59+00:00","maker":"0x3badfe99a9899840b6b174309e6461ed2350e976","pair":"0x8d7bc500db4f2675d0178787fddf3bcff59201f0","sym":"microagi","lag_secs":2.41}
+{"kind":"buy","volume_usd":182.84,"ts":"2026-07-17T04:48:02+00:00","maker":"0x33fa06f0a02ebd1b0177ebb226482d38981e1f2d","pair":"0x8d7bc500db4f2675d0178787fddf3bcff59201f0","sym":"microagi","lag_secs":4.24}
+{"kind":"buy","volume_usd":177.49,"ts":"2026-07-17T04:48:07+00:00","maker":"0x47b62c1088098cdabd27be0ffd7effad7f903c91","pair":"0x8d7bc500db4f2675d0178787fddf3bcff59201f0","sym":"microagi","lag_secs":5.99}
+{"kind":"sell","volume_usd":32.13,"ts":"2026-07-17T04:48:07+00:00","maker":"0xdf6787408754e2818a3870ef97f9d7c61455780d","pair":"0x8d7bc500db4f2675d0178787fddf3bcff59201f0","sym":"microagi","lag_secs":5.99}
+{"kind":"sell","volume_usd":102.57,"ts":"2026-07-17T04:48:07+00:00","maker":"0x6c3cecd19f97fd266e1467ca035b12b589ab9b27","pair":"0x8d7bc500db4f2675d0178787fddf3bcff59201f0","sym":"microagi","lag_secs":5.99}
+{"kind":"sell","volume_usd":41.73,"ts":"2026-07-17T04:48:08+00:00","maker":"0x7347afd22efe0a94ee42116bf679125d920d614e","pair":"0x8d7bc500db4f2675d0178787fddf3bcff59201f0","sym":"microagi","lag_secs":4.99}
+{"kind":"buy","volume_usd":545.76,"ts":"2026-07-17T04:48:09+00:00","maker":"0x16cf9cf3255ad9e9e653359ec0e08fd36f4c0e3a","pair":"0x8d7bc500db4f2675d0178787fddf3bcff59201f0","sym":"microagi","lag_secs":3.99}
+{"kind":"buy","volume_usd":91.88,"ts":"2026-07-17T04:48:10+00:00","maker":"0x198e060864709a991d9b3cbda782bda8363ec03b","pair":"0x8d7bc500db4f2675d0178787fddf3bcff59201f0","sym":"microagi","lag_secs":31.01}
+{"kind":"buy","volume_usd":367.51,"ts":"2026-07-17T04:48:13+00:00","maker":"0x21c83a746105390248ba122b0bbbf578bfc2defa","pair":"0x8d7bc500db4f2675d0178787fddf3bcff59201f0","sym":"microagi","lag_secs":28.01}
+{"kind":"buy","volume_usd":381.29,"ts":"2026-07-17T04:48:16+00:00","maker":"0x84c3e3d47d15accb6ff7dc22f9636cbd17ec4951","pair":"0x8d7bc500db4f2675d0178787fddf3bcff59201f0","sym":"microagi","lag_secs":25.01}

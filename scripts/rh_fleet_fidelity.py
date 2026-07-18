@@ -32,14 +32,20 @@ USER = os.environ.get("RH_DASH_USER", "") or (_ARGV[0] if len(_ARGV) > 0 else ""
 PW = os.environ.get("RH_DASH_PW", "") or (_ARGV[1] if len(_ARGV) > 1 else "")
 ENTRY_USD = 25.0
 
-BOTS = ["rh_young_v1","rh_deep_only","rh_first_touch","rh_bites2","rh_wide_ladder",
-    "rh_moonbag","rh_demand_heavy","rh_liq40","rh_prime_hours","rh_launch_scalp",
-    "rh_aged_hold","rh_aged_derisk","rh_aged_deep","rh_f_pullback","rh_f_arc_scalp",
-    "rh_f_popret","rh_f_reload24","rh_f_reload_mid","rh_deep_barbell",
-    "rh_deep_barbell_capped","rh_fill_probe","rh_lowvar_catstop","rh_lowvar_box",
-    "rh_deep_consolidated","rh_strength_trail","rh_deepdemand","rh_demand_broad",
-    "rh_deepdemand_capped","rh_bankfast","rh_stable_demand","rh_stable_deep",
-    "rh_stable_ageddeep"]
+# BOTS: DYNAMIC (2026-07-18 fix). The hardcoded 07-14 list silently EXEMPTED
+# every bot created after it (slcut trio, phoenix, admission arms' RH twins) —
+# new bots escaped fidelity scrutiny entirely, and retired bots kept slots.
+# Derive the list from the dashboard's live bot map instead.
+def _bots():
+    r = subprocess.run(["curl", "-s", "--max-time", "30",
+                        f"{BASE}/api/rh-paper"], capture_output=True, text=True)
+    try:
+        b = json.loads(r.stdout).get("bots") or {}
+        return sorted(b.keys()) if isinstance(b, dict) else []
+    except Exception:
+        return []
+
+BOTS = _bots()
 
 
 def dash_rows(bot):

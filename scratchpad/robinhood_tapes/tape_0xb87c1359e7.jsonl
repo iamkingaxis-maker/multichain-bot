@@ -1,0 +1,2 @@
+{"kind":"sell","volume_usd":6.07,"ts":"2026-07-18T00:23:23+00:00","maker":"0x5b3a17439393904173475857089224717e69a4e9","pair":"0xb87c1359e7e56ff9a3d52344bf8faa189e9c0249","sym":"Relic","lag_secs":4.68}
+{"kind":"buy","volume_usd":0.5,"ts":"2026-07-18T00:23:23+00:00","maker":"0xca7c8b739f2600ea9f0d6b8cf18c7b7057406ee7","pair":"0xb87c1359e7e56ff9a3d52344bf8faa189e9c0249","sym":"Relic","lag_secs":4.68}

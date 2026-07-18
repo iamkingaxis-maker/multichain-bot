@@ -1,0 +1,46 @@
+{
+ "ts": "2026-07-18T14:13:33.469234+00:00",
+ "note": "ADVISORY until cells hold >=5 days same-sign; re-mine daily",
+ "rh_cells": {
+  "03-09|H": {
+   "usd": 116.73,
+   "entries": 324
+  },
+  "22-03|H": {
+   "usd": -19.47,
+   "entries": 44
+  },
+  "22-03|S": {
+   "usd": -213.59,
+   "entries": 413
+  },
+  "03-09|S": {
+   "usd": 4.44,
+   "entries": 229
+  },
+  "09-13|S": {
+   "usd": 284.27,
+   "entries": 405
+  },
+  "13-17|S": {
+   "usd": -72.06,
+   "entries": 119
+  },
+  "13-17|H": {
+   "usd": 19.95,
+   "entries": 182
+  },
+  "17-22|H": {
+   "usd": -108.82,
+   "entries": 70
+  },
+  "09-13|H": {
+   "usd": -29.88,
+   "entries": 23
+  },
+  "17-22|S": {
+   "usd": -25.02,
+   "entries": 1
+  }
+ }
+}

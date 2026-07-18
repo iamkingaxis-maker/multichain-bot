@@ -1,0 +1,15 @@
+{"kind":"buy","volume_usd":371.56,"ts":"2026-07-18T01:22:33+00:00","maker":"0x8568d2a61b91a6166791efda9cb5e641c836d24d","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":2.1}
+{"kind":"sell","volume_usd":333.18,"ts":"2026-07-18T01:22:33+00:00","maker":"0x06b7773da0360e7045e7efe14be0913c0268b07a","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":2.1}
+{"kind":"buy","volume_usd":119.76,"ts":"2026-07-18T01:22:35+00:00","maker":"0x63c5fda804cc4f0e7bcb409a5f96a65b2b8eb7f5","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":3.09}
+{"kind":"sell","volume_usd":355.1,"ts":"2026-07-18T01:22:35+00:00","maker":"0x1a052a827701861b21554d0e7c612a0d53799d61","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":3.09}
+{"kind":"buy","volume_usd":72.58,"ts":"2026-07-18T01:22:37+00:00","maker":"0x8648727d965141dc2baa3cc5ee3c9ef4fb24c052","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":2.6}
+{"kind":"sell","volume_usd":70.78,"ts":"2026-07-18T01:22:38+00:00","maker":"0xdd071a4ad25cc14467816203639f7321c9c0b85a","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":1.6}
+{"kind":"buy","volume_usd":326.22,"ts":"2026-07-18T01:22:40+00:00","maker":"0x8eff61ee1f8a7b2ef96f45bdc15957542492b206","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":4.51}
+{"kind":"sell","volume_usd":48.52,"ts":"2026-07-18T01:22:40+00:00","maker":"0xd6c39916dccd66b3e7bbd5d165fdcf8e9623c19e","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":4.51}
+{"kind":"buy","volume_usd":112.5,"ts":"2026-07-18T01:22:43+00:00","maker":"0x9a5d9660a706d94df49757e84e8130fd29c98a81","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":1.51}
+{"kind":"sell","volume_usd":40.55,"ts":"2026-07-18T01:22:44+00:00","maker":"0x75ec118c6659a9c69d045406f986e7eb55a07c95","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":2.03}
+{"kind":"buy","volume_usd":122.8,"ts":"2026-07-18T01:22:45+00:00","maker":"0x2977a90fcce4da0c1dff0152624c1f49f0e36eae","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":2.53}
+{"kind":"sell","volume_usd":18.74,"ts":"2026-07-18T01:22:47+00:00","maker":"0x4f24d6a1911eb7c33720c201c94caf16c65734c9","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":2.01}
+{"kind":"buy","volume_usd":133.8,"ts":"2026-07-18T01:22:48+00:00","maker":"0x7c63733010e821aac23ba835639b5d4ea3ff3bcd","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":1.01}
+{"kind":"buy","volume_usd":0.49,"ts":"2026-07-18T01:22:49+00:00","maker":"0xca7c8b739f2600ea9f0d6b8cf18c7b7057406ee7","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":1.53}
+{"kind":"buy","volume_usd":48.99,"ts":"2026-07-18T01:22:50+00:00","maker":"0x5c75ceec1e4c6aaf8fc4c79997caf50533040075","pair":"0x673e12b61a0c7704fd799a51b39d5db8676dd0f6","sym":"WOLVES","lag_secs":2.0}

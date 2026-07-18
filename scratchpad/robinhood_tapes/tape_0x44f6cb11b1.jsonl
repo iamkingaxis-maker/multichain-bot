@@ -1,0 +1,16 @@
+{"kind":"buy","volume_usd":220.07,"ts":"2026-07-17T21:32:18+00:00","maker":"0xa03bfab2917b6fc86090d2f7d6d036613e37058c","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":3.2}
+{"kind":"sell","volume_usd":128.43,"ts":"2026-07-17T21:32:19+00:00","maker":"0xea8a936ced2c1da3c75661ed7970791cf697eb83","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":2.2}
+{"kind":"sell","volume_usd":1.6,"ts":"2026-07-17T21:32:19+00:00","maker":"0x04efa10c0f8ce3bd2c0956ce8f175f70edb112f5","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":2.2}
+{"kind":"buy","volume_usd":366.79,"ts":"2026-07-17T21:32:23+00:00","maker":"0xaa2b4ad3b935d8666f2ef89365c3945743cc1f2b","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":2.71}
+{"kind":"buy","volume_usd":145.89,"ts":"2026-07-17T21:32:28+00:00","maker":"0x048153c2ff6e69162117a9f724211eaba5488117","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":4.38}
+{"kind":"sell","volume_usd":2.71,"ts":"2026-07-17T21:32:28+00:00","maker":"0x744c2a7850edba13a9609255557fa470bdd04efe","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":4.38}
+{"kind":"sell","volume_usd":33.89,"ts":"2026-07-17T21:32:29+00:00","maker":"0x5f9953ca676282ea4655e194671092cc26f83cc3","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":3.38}
+{"kind":"buy","volume_usd":0.59,"ts":"2026-07-17T21:32:31+00:00","maker":"0xea1210ae2c81031014922af24ea1ce8b28920efa","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":2.88}
+{"kind":"buy","volume_usd":907.8,"ts":"2026-07-17T21:32:34+00:00","maker":"0xdbf18904f34e8a593cad73372bc7c4ff9640476d","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":2.88}
+{"kind":"buy","volume_usd":366.79,"ts":"2026-07-17T21:32:38+00:00","maker":"0xc7a432101f12d1479e04c7b221b65cd0f42b0a21","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":5.26}
+{"kind":"sell","volume_usd":25.07,"ts":"2026-07-17T21:32:39+00:00","maker":"0xce02ddc75a32422a5a92a002f8979deaa8a5a12b","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":4.26}
+{"kind":"buy","volume_usd":236.58,"ts":"2026-07-17T21:32:42+00:00","maker":"0xee74c344c72bcb917ce63f49c25e1affe91c776c","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":6.2}
+{"kind":"buy","volume_usd":7.68,"ts":"2026-07-17T21:32:45+00:00","maker":"0x04cc96a1a9cf7ddd7fbdf621b5e6ac392ae3e0ab","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":3.2}
+{"kind":"sell","volume_usd":182.46,"ts":"2026-07-17T21:32:46+00:00","maker":"0x7f9c3bfb8a98652122cdadc2f39cde321e6c5e25","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":2.2}
+{"kind":"buy","volume_usd":181.56,"ts":"2026-07-17T21:32:48+00:00","maker":"0xc57c2245becb5241b29a006508d94d7a2657adb4","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":6.61}
+{"kind":"buy","volume_usd":1.28,"ts":"2026-07-17T21:32:50+00:00","maker":"0xce90272f8b7bdb1511d0c06a47568062cc3cc47b","pair":"0x44f6cb11b1c6512df3d5ee9178d4f8ecd192107a","sym":"Costco","lag_secs":4.61}

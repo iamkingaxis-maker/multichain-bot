@@ -1,0 +1,8 @@
+{"kind":"buy","volume_usd":534.78,"ts":"2026-07-17T02:12:49+00:00","maker":"0xf72a267f6b61c33e95cca0ce257669ad0a34d252","pair":"0x30e286148ac8808cc13f5a7f446a762cc09126a7","sym":"ALPS","lag_secs":1.53}
+{"kind":"sell","volume_usd":25.15,"ts":"2026-07-17T02:12:51+00:00","maker":"0x9e64029f5f85ff728e2b8709bbb04e95ab5e18dc","pair":"0x30e286148ac8808cc13f5a7f446a762cc09126a7","sym":"ALPS","lag_secs":11.2}
+{"kind":"buy","volume_usd":25.45,"ts":"2026-07-17T02:12:52+00:00","maker":"0x5a2b4b07ca0fc5612cb358e0c0360ae41bdc3c31","pair":"0x30e286148ac8808cc13f5a7f446a762cc09126a7","sym":"ALPS","lag_secs":10.2}
+{"kind":"buy","volume_usd":20.2,"ts":"2026-07-17T02:12:55+00:00","maker":"0xdd071a4ad25cc14467816203639f7321c9c0b85a","pair":"0x30e286148ac8808cc13f5a7f446a762cc09126a7","sym":"ALPS","lag_secs":7.2}
+{"kind":"sell","volume_usd":56.52,"ts":"2026-07-17T02:12:56+00:00","maker":"0x75ec118c6659a9c69d045406f986e7eb55a07c95","pair":"0x30e286148ac8808cc13f5a7f446a762cc09126a7","sym":"ALPS","lag_secs":6.2}
+{"kind":"buy","volume_usd":109.09,"ts":"2026-07-17T02:12:57+00:00","maker":"0x2d4ce33df05f35aba68a7c5c774c18de21c1aba9","pair":"0x30e286148ac8808cc13f5a7f446a762cc09126a7","sym":"ALPS","lag_secs":5.2}
+{"kind":"buy","volume_usd":0.49,"ts":"2026-07-17T02:12:58+00:00","maker":"0xca7c8b739f2600ea9f0d6b8cf18c7b7057406ee7","pair":"0x30e286148ac8808cc13f5a7f446a762cc09126a7","sym":"ALPS","lag_secs":4.2}
+{"kind":"sell","volume_usd":0.61,"ts":"2026-07-17T02:12:58+00:00","maker":"0x13418a12d66489bc9e97285273d9a3aed460f1b8","pair":"0x30e286148ac8808cc13f5a7f446a762cc09126a7","sym":"ALPS","lag_secs":4.2}

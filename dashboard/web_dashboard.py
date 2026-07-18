@@ -6146,9 +6146,14 @@ class WebDashboard:
         # edge but fail the per-bot volume bar alone (~9/day) — pairable, not
         # primary. Parents stay racing as clean A/B controls, never modified.
         ROUTE_MAP = {
-            "rh": {"HEALTHY": ["rh_slcut_agedhold", "rh_slcut_ageddeep",
-                               "rh_strength_trail", "rh_deep_barbell_capped",
-                               "rh_f_reload_mid"]},
+            # FIDELITY PURGE (2026-07-18 big-number audit): strength_trail
+            # (fid -$117), deep_barbell_capped (-$183) and f_reload_mid (-$8)
+            # are fidelity-RED — their healthy-window "green" was paper-$
+            # illusion (the family map was mined on paper dollars; re-mine on
+            # fidelity-corrected $ is queued). Only the slcut pair stays,
+            # pending their FIRST fidelity measurement (they were invisible to
+            # the fidelity job until its hardcoded bot list was made dynamic).
+            "rh": {"HEALTHY": ["rh_slcut_agedhold", "rh_slcut_ageddeep"]},
             "sol": {},
         }
         route = {}

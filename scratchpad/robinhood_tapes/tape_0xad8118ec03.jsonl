@@ -1,0 +1,12 @@
+{"kind":"sell","volume_usd":109.68,"ts":"2026-07-17T03:20:39+00:00","maker":"0x5b3a17439393904173475857089224717e69a4e9","pair":"0xad8118ec03290ea4bf3bfe6a30b72d1e22d69735","sym":"PONS","lag_secs":2.45}
+{"kind":"buy","volume_usd":109.17,"ts":"2026-07-17T03:20:39+00:00","maker":"0xf08f5bfb7f883eb2a0e55ab5b83a672ae9307960","pair":"0xad8118ec03290ea4bf3bfe6a30b72d1e22d69735","sym":"PONS","lag_secs":2.45}
+{"kind":"sell","volume_usd":570.21,"ts":"2026-07-17T03:20:41+00:00","maker":"0x240ff6599b55cd300f7e461ad1be0beb46a45858","pair":"0xad8118ec03290ea4bf3bfe6a30b72d1e22d69735","sym":"PONS","lag_secs":3.46}
+{"kind":"buy","volume_usd":29.11,"ts":"2026-07-17T03:20:41+00:00","maker":"0x6790d16b2eb8cf64fc53f0c0c0927723eb1a3243","pair":"0xad8118ec03290ea4bf3bfe6a30b72d1e22d69735","sym":"PONS","lag_secs":3.46}
+{"kind":"buy","volume_usd":58.22,"ts":"2026-07-17T03:20:43+00:00","maker":"0x17497bfa442adfb87ac4adc9ded6adeb34a3c23d","pair":"0xad8118ec03290ea4bf3bfe6a30b72d1e22d69735","sym":"PONS","lag_secs":2.96}
+{"kind":"sell","volume_usd":2.82,"ts":"2026-07-17T03:20:44+00:00","maker":"0x4502bc14760e98648a0c2f3e6956105555fefb0e","pair":"0xad8118ec03290ea4bf3bfe6a30b72d1e22d69735","sym":"PONS","lag_secs":3.45}
+{"kind":"buy","volume_usd":21.83,"ts":"2026-07-17T03:20:46+00:00","maker":"0xd0fc96bf43daf1afb2f10d8d01430daa5375db09","pair":"0xad8118ec03290ea4bf3bfe6a30b72d1e22d69735","sym":"PONS","lag_secs":1.45}
+{"kind":"sell","volume_usd":8.32,"ts":"2026-07-17T03:20:47+00:00","maker":"0x4f24d6a1911eb7c33720c201c94caf16c65734c9","pair":"0xad8118ec03290ea4bf3bfe6a30b72d1e22d69735","sym":"PONS","lag_secs":1.93}
+{"kind":"buy","volume_usd":29.11,"ts":"2026-07-17T03:20:48+00:00","maker":"0x24f6571136547f6d18700424e5b098cbe215d829","pair":"0xad8118ec03290ea4bf3bfe6a30b72d1e22d69735","sym":"PONS","lag_secs":2.43}
+{"kind":"sell","volume_usd":2.56,"ts":"2026-07-17T03:20:50+00:00","maker":"0xf97a783f9f098088129310d10c20aa52fa3c3af3","pair":"0xad8118ec03290ea4bf3bfe6a30b72d1e22d69735","sym":"PONS","lag_secs":1.93}
+{"kind":"buy","volume_usd":108.43,"ts":"2026-07-17T03:20:50+00:00","maker":"0x63c5fda804cc4f0e7bcb409a5f96a65b2b8eb7f5","pair":"0xad8118ec03290ea4bf3bfe6a30b72d1e22d69735","sym":"PONS","lag_secs":1.93}
+{"kind":"buy","volume_usd":0.55,"ts":"2026-07-17T03:20:52+00:00","maker":"0x3be9ec4e7b63efb3b70dad6c6b738aa2ac248182","pair":"0xad8118ec03290ea4bf3bfe6a30b72d1e22d69735","sym":"PONS","lag_secs":2.92}

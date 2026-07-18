@@ -1,0 +1,6 @@
+{"kind":"buy","volume_usd":160.99,"ts":"2026-07-17T05:35:11+00:00","maker":"0x39d7d347b3ffc8b26855df1dbd86f8f56637dff7","pair":"0x280180929e97c87198e9d1bc06d8f83d7cf40f2f","sym":"RWA","lag_secs":52.98}
+{"kind":"sell","volume_usd":99.28,"ts":"2026-07-17T05:35:13+00:00","maker":"0x06b7773da0360e7045e7efe14be0913c0268b07a","pair":"0x280180929e97c87198e9d1bc06d8f83d7cf40f2f","sym":"RWA","lag_secs":50.98}
+{"kind":"buy","volume_usd":168.43,"ts":"2026-07-17T05:35:13+00:00","maker":"0xb3aa3605054b697abb4ae0247a3c82123a736395","pair":"0x280180929e97c87198e9d1bc06d8f83d7cf40f2f","sym":"RWA","lag_secs":50.98}
+{"kind":"buy","volume_usd":0.55,"ts":"2026-07-17T05:35:15+00:00","maker":"0x3be9ec4e7b63efb3b70dad6c6b738aa2ac248182","pair":"0x280180929e97c87198e9d1bc06d8f83d7cf40f2f","sym":"RWA","lag_secs":48.98}
+{"kind":"sell","volume_usd":2.83,"ts":"2026-07-17T05:35:15+00:00","maker":"0xd6c39916dccd66b3e7bbd5d165fdcf8e9623c19e","pair":"0x280180929e97c87198e9d1bc06d8f83d7cf40f2f","sym":"RWA","lag_secs":48.98}
+{"kind":"buy","volume_usd":706.32,"ts":"2026-07-17T05:35:16+00:00","maker":"0xae9c240d877367910df19f17046ce61414fd5c47","pair":"0x280180929e97c87198e9d1bc06d8f83d7cf40f2f","sym":"RWA","lag_secs":47.98}

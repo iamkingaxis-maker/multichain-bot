@@ -1,0 +1,6 @@
+{"kind":"sell","volume_usd":205.84,"ts":"2026-07-17T21:38:26+00:00","maker":"0xf45f930b40bdab8661b866a9259f0ae7715378b2","pair":"0xf09b8c9e7af17951a8081ddcfd2b920131e9e38b","sym":"ACAT","lag_secs":0.81}
+{"kind":"sell","volume_usd":8478.1,"ts":"2026-07-17T21:38:53+00:00","maker":"0x8b892643832d41b9f016316aa33bf15fb04bc8ab","pair":"0xf09b8c9e7af17951a8081ddcfd2b920131e9e38b","sym":"ACAT","lag_secs":1.6}
+{"kind":"buy","volume_usd":0.03,"ts":"2026-07-17T21:40:02+00:00","maker":"0x50c0f1a0e10fa39d50fc0b5c70eb3a99f7acd277","pair":"0xf09b8c9e7af17951a8081ddcfd2b920131e9e38b","sym":"ACAT","lag_secs":6.02}
+{"kind":"buy","volume_usd":22.01,"ts":"2026-07-17T23:53:55+00:00","maker":"0x5ab37579741aa0df198332dae8cb221c9a432c98","pair":"0xf09b8c9e7af17951a8081ddcfd2b920131e9e38b","sym":"ACAT","lag_secs":1.6}
+{"kind":"sell","volume_usd":21.88,"ts":"2026-07-17T23:55:54+00:00","maker":"0x5ab37579741aa0df198332dae8cb221c9a432c98","pair":"0xf09b8c9e7af17951a8081ddcfd2b920131e9e38b","sym":"ACAT","lag_secs":2.64}
+{"kind":"buy","volume_usd":0.0,"ts":"2026-07-18T00:14:31+00:00","maker":"0x301223065ad8cdc0356d205f2c4e6db1c72c7ac6","pair":"0xf09b8c9e7af17951a8081ddcfd2b920131e9e38b","sym":"ACAT","lag_secs":2.17}
