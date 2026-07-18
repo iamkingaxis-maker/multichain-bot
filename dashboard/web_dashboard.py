@@ -6128,8 +6128,9 @@ class WebDashboard:
         # edge but fail the per-bot volume bar alone (~9/day) — pairable, not
         # primary. Parents stay racing as clean A/B controls, never modified.
         ROUTE_MAP = {
-            "rh": {"HEALTHY": ["rh_slcut_agedhold", "rh_strength_trail",
-                               "rh_deep_barbell_capped", "rh_f_reload_mid"]},
+            "rh": {"HEALTHY": ["rh_slcut_agedhold", "rh_slcut_ageddeep",
+                               "rh_strength_trail", "rh_deep_barbell_capped",
+                               "rh_f_reload_mid"]},
             "sol": {},
         }
         route = {}
