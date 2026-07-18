@@ -1,3 +1,37 @@
+# Session Handoff — 2026-07-18 ~01:45 UTC — 5H SOLO SHIFT (AxiS away) — ALL 4 ITEMS DELIVERED
+
+## SHIFT DELIVERABLES
+1. **Cross-day decode (107k trades/4h, busiest tape measured):** ⛔ EXTRACTOR-VETO KILLED —
+   the ~6pp penalty INVERTED on the busy tape (post-extractor buyers WON 57% vs 49%, n=8.2k).
+   One-regime structure; the day-to-day rule prevented a wrong build. Extraction dominance =
+   3rd-day stable ($2.7M/4h). Single-leg winner exits DRIFTING (1.5 legs) — stable→watch.
+2. **Regime map v2 instrument** (scripts/regime_map_mine.py, daily re-mine): first run caught
+   hour-drift — 17-22 UTC flipped from the 07-11 rulebook's best band to WORST (-$232 in
+   healthy tapes); 03-09H (+$131) and 13-17H (+$81) carry the green. ADVISORY until 5d.
+3. **Scrub widening deployed:** >+100% wins inside 5min dropped at grade time (CASHBULL class).
+4. **Blind-sensor expiry + OFF-trigger table** (AxiS's "how do we flip it off?"): held regime
+   state expires after 8h without a real read -> STAND_DOWN. Full OFF stack documented in
+   REGIME_FLIPPER_PLAN.md 4b (minutes=envelope / hours=regime / days=map / any=blindness).
+
+## LIVE DEMONSTRATIONS (the flipper working, recommend-only)
+- Sensor caught RH going SICK in real time (-12.9%), then correctly HELD SICK through a
+  +27% whipsaw (hysteresis pending 2nd read). Both chains currently STAND_DOWN.
+- The admission arms' red paper day (-$76 each at volume) happened in windows the router
+  called STAND_DOWN = Gate-A evidence accruing FOR the router.
+
+## STATE
+- Wallet $40.71 untouched; live paused both chains. All pipes fresh, 0 tracebacks.
+- Races: slcut trio (RH) + absorb_sl1_ab/admission_x_liq_sl1 (SOL, new) accruing.
+  SL1 evidence stack: RH 64k replay + RH live A/B + SOL record backtest (all ~+0.5pp/trade).
+- Gate A history accruing (n>=30 windows = days); Gates B/C on schedule (~3-4d).
+
+## NEXT (Fable day 2)
+Daily gate cycle: re-pull ledgers -> regime_map_mine (drop/keep families) -> grade slcut +
+SOL SL1 racers vs parents -> Gate A quantitative read when n allows. Then the return report
+with filled-in re-arm checklist if anything clears the bar.
+
+---
+
 # Session Handoff — 2026-07-17 ~10:50 UTC — OVERNIGHT AUTONOMOUS SHIFT (AxiS asleep 9h)
 
 ## ⚠️ FIRST THING TO KNOW: a PHANTOM FILL is poisoning admission_x_liqdemand's number
