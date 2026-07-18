@@ -145,13 +145,25 @@ def test_sl1_off_is_byte_identical(tmp_path, monkeypatch):
                 and r["kind"] == "SL1_DERISK"]
 
 
-def test_roster_has_three_slcut_racers_and_no_leak():
+def test_roster_sl1_bots_and_no_leak():
+    # 3 slcut A/B racers + rh_phoenix (2026-07-18: the post-stop bounce
+    # catcher stacks the validated SL1 — its 28% true-death class rides only
+    # 25% past -6). Every other bot: sl1 OFF (byte-identical fleet).
     slcut = [b for b in mod.ROSTER if b.sl1_pct is not None]
     assert {b.bot_id for b in slcut} == {"rh_slcut_ageddeep",
                                          "rh_slcut_agedhold",
-                                         "rh_slcut_demand"}
+                                         "rh_slcut_demand",
+                                         "rh_phoenix"}
     assert all(b.sl1_pct == -6.0 and b.sl1_sell_fraction == 0.75
-               and b.exclusion_group == "slcut" for b in slcut)
-    # every other bot: sl1 OFF (byte-identical fleet)
+               for b in slcut)
     assert all(b.sl1_pct is None for b in mod.ROSTER
                if b.bot_id not in {x.bot_id for x in slcut})
+
+
+def test_phoenix_inverted_entry_config():
+    p = [b for b in mod.ROSTER if b.bot_id == "rh_phoenix"][0]
+    assert p.phoenix_entry is True and p.phoenix_window_s == 3600.0
+    assert p.exclusion_group is None      # sibling-stop must NOT re-block it
+    # every non-phoenix bot keeps the flag off (the exclusion rule stands)
+    assert all(not b.phoenix_entry for b in mod.ROSTER
+               if b.bot_id != "rh_phoenix")

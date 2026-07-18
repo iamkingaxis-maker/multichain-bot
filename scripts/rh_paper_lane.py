@@ -357,6 +357,16 @@ class LaneBot:
     # None = OFF (byte-identical for every other bot).
     sl1_pct: Optional[float] = None
     sl1_sell_fraction: float = 0.75
+    # PHOENIX ENTRY (2026-07-18 post-exit bounce backtest): RH losers' tokens
+    # bounce a MEDIAN +16.2% above our exit within 6h (64% >=+5%, 59% recover
+    # more than the whole loss, only 28% true deaths) — and the fleet's
+    # sibling_stop exclusion actively BLOCKS re-entry into exactly that class
+    # (3 re-entry cycles in 5 days). A phoenix bot INVERTS the rule: it may
+    # ONLY enter pools where a fleet bot loss-stopped within phoenix_window_s
+    # — the stop-out is the bottom-marker; the normal dip/demand gates then
+    # confirm the turn (the lane's base-confirmation equivalent).
+    phoenix_entry: bool = False
+    phoenix_window_s: float = 3600.0
     # ── AGED-POOL racer machinery (2026-07-11; all default OFF so every
     # pre-existing racer is byte-identical — their A/B is mid-flight) ────────
     # cross-sibling token exclusion (Solana young_pond mirror): racers sharing
@@ -1088,6 +1098,29 @@ ROSTER = (
             derisk_after_s=LOWVAR_DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
             sl1_pct=-6.0, sl1_sell_fraction=0.75,
             exclusion_group="slcut"),
+    # ── PHOENIX RACER (2026-07-18 post-exit bounce backtest, n=801 losing
+    # closes with 6h coverage: median bounce +16.2% above our exits; 59%
+    # recover more than the whole loss; 28% true deaths). Entry = INVERTED
+    # sibling-stop: only pools a fleet bot loss-stopped within 60min (the
+    # stop is the bottom-marker), then the normal dip + demand-turn gates
+    # confirm the turn. Loose dip (-8: post-stop price is already dipped),
+    # broad admission (liq>=10k, no age band — bounces measured fleet-wide).
+    # Exits shaped to the measured bounce (median +16 -> TP2 +14) with the
+    # validated SL1 stacked (the 28% deaths ride only 25% past -6). NO
+    # exclusion_group: sibling-stop semantics must not re-block it.
+    # PRE-REGISTERED: grade at n>=30 closes on net $/entry + win-rate +
+    # cat-rate; kill if the deaths eat the bounces.
+    LaneBot(bot_id="rh_phoenix",
+            phoenix_entry=True, phoenix_window_s=3600.0,
+            dip_trigger_pct=-8.0,
+            min_liq_usd=10_000.0,
+            min_pool_age_h=0.0,
+            tp1_pct=6.0, tp1_sell_fraction=0.60,
+            tp2_pct=14.0, tp2_sell_fraction=0.25,
+            trail_pp=6.0,
+            hard_stop_pct=-12.0,
+            sl1_pct=-6.0, sl1_sell_fraction=0.75,
+            max_concurrent=2),
 )
 
 
@@ -2387,6 +2420,15 @@ class PaperLane:
                          list(self.state.values()), b.bot_id,
                          b.exclusion_group, now, b.sibling_stop_window_s)
                      for b in self.bots if b.exclusion_group}
+        # PHOENIX fact: latest FLEET loss-stop per pool (any bot's exit_book),
+        # built once per tick; each phoenix bot applies its own window.
+        fleet_loss_stops = {}
+        for st_ in self.state.values():
+            for pool_, info_ in st_.exit_book.items():
+                if info_.get("loss"):
+                    ts_ = float(info_.get("ts") or 0)
+                    if ts_ > fleet_loss_stops.get(pool_, 0.0):
+                        fleet_loss_stops[pool_] = ts_
         for pool, series in list(self.prices.items()):
             w = self.feed.watch.get(pool)
             if not w:
@@ -2442,6 +2484,12 @@ class PaperLane:
                 # per-racer aged-cohort verdicts (all default-off for the
                 # pre-existing scalp fleet)
                 extra = []
+                if bot.phoenix_entry:
+                    # inverted sibling-stop rule: REQUIRE a recent fleet
+                    # loss-stop on this pool (the bottom-marker)
+                    ts_stop = fleet_loss_stops.get(pool, 0.0)
+                    if not ts_stop or (now - ts_stop) > bot.phoenix_window_s:
+                        extra.append("no_recent_stop")
                 if bot.exclusion_group:
                     ek = excl_keys.get(bot.bot_id) or set()
                     if pool in ek or (cand_token and cand_token in ek):
