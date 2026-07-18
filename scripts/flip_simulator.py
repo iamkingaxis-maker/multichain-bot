@@ -70,8 +70,9 @@ def main():
     span_start = snaps[0]["t"]
     for s in snaps:
         want = s["bots"][0] if (s["action"] == "TRADE" and s["bots"]) else None
-        if want != seat and (s["t"] - last_flip) >= WINDOW_CAP_S or \
-           (want != seat and last_flip == 0.0):
+        can_flip = (last_flip == 0.0
+                    or (s["t"] - last_flip) >= WINDOW_CAP_S)
+        if want != seat and can_flip:
             spans.append({"bot": seat, "t0": span_start, "t1": s["t"]})
             seat = want
             last_flip = s["t"]
@@ -96,7 +97,10 @@ def main():
     # the counterfactual bot for OFF spans = the route's primary at that time;
     # approximation: use the NEXT armed bot, else the most-recent armed bot
     armed_bots = [x["bot"] for x in spans if x["bot"]]
-    default_bot = armed_bots[0] if armed_bots else None
+    # OFF spans must ALWAYS be priced against the bot we WOULD have run —
+    # if nothing ever armed in the recorded window, fall back to the route's
+    # current primary so "what did standing down cost" is never $0-by-default.
+    default_bot = armed_bots[0] if armed_bots else "rh_slcut_agedhold"
 
     on_usd = off_usd = 0.0
     flips = []
@@ -115,7 +119,7 @@ def main():
             off_usd += usd
         flips.append({"state": state, "bot": cf_bot,
                       "hours": round(hrs, 1), "usd": round(usd, 2),
-                      "t0": datetime.utcfromtimestamp(sp["t0"]).isoformat()[:16]})
+                      "t0": datetime.fromtimestamp(sp["t0"], tz=__import__("datetime").timezone.utc).isoformat()[:16]})
         if sp["bot"]:
             prev_bot = sp["bot"]
 

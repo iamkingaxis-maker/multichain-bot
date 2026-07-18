@@ -2333,6 +2333,23 @@ class WebDashboard:
         site = web.TCPSite(runner, "0.0.0.0", self.port)
         await site.start()
         logger.info(f"[Dashboard] Web dashboard running at http://0.0.0.0:{self.port}")
+        # REGIME SELF-SNAPSHOT (2026-07-18): the decision recorder previously
+        # only appended when a CALLER hit /api/regime — 13 snapshots in 21h
+        # instead of ~85, starving the flip simulator and Gate A. The sensor
+        # is the system's memory of its own decisions; memory must not depend
+        # on visitors. Self-drive it every 15min (fail-open forever).
+        import asyncio as _aio
+
+        async def _regime_selfdrive():
+            from types import SimpleNamespace
+            while True:
+                try:
+                    await self._handle_api_regime(
+                        SimpleNamespace(query={}))
+                except Exception as e:
+                    logger.debug("[regime] selfdrive: %s", e)
+                await _aio.sleep(900)
+        self._regime_task = _aio.create_task(_regime_selfdrive())
 
     # ── HTTP Handlers ────────────────────────────────────────────────────────
 
