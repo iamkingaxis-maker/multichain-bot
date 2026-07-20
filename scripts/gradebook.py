@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+"""gradebook.py — automated FIDELITY-HONEST bar status for every standing
+experiment (2026-07-19, last-Fable-night build; manual section 3).
+
+WHY THIS EXISTS: months of iteration re-selected illusion because grading was
+manual, ad-hoc, and often in paper dollars. This tool makes the grading loop
+mechanical so any session (any model) runs the same honest ruler:
+  * phantom scrub: drop wins >+100% inside 5min, and ANY win held <10s
+  * dead-token re-book (RH): every stake into a token in _dead_tokens.json is
+    a full loss, N re-buys = N stakes (uses the freshest local dead set; if
+    the set is older than DEAD_MAX_AGE_H it is SKIPPED with a loud warning —
+    a stale corpse list is its own illusion)
+  * bar: n>=30 closes, >=5 distinct UTC days, >=20 unique tokens, and
+    drop-top-2 closes still positive — ALL required before any grade talk
+Run: python scripts/gradebook.py            (RH experiments, ~1 pull/bot)
+     python scripts/gradebook.py --sol      (also pull SOL trades, heavier)
+Output: table per experiment + scratchpad/_gradebook.json for the loop.
+"""
+from __future__ import annotations
+import json
+import os
+import sys
+import time
+import urllib.request
+from collections import defaultdict
+from datetime import datetime
+
+BASE = os.environ.get("RH_DASH_BASE",
+                      "https://gracious-inspiration-production.up.railway.app")
+DEAD_PATH = os.path.join("scratchpad", "_dead_tokens.json")
+DEAD_MAX_AGE_H = 36.0
+OUT = os.path.join("scratchpad", "_gradebook.json")
+
+# ── the standing experiments (manual section 3; edit HERE when racing changes)
+EXPERIMENTS = [
+    {"name": "RH dipall quartet (entry-source #2+#3)", "chain": "rh",
+     "arms": ["rh_dipall_ctrl", "rh_dipall_knife",
+              "rh_dipall_young1h", "rh_dipall_both"],
+     "note": "knife: kept-beats-skipped >=70% of days; kept lane MAY stay "
+             "mildly red (pre-registered). Measure marginal value via arms."},
+    {"name": "RH professional seat (panel synthesis)", "chain": "rh",
+     "arms": ["rh_pro_agedflush"],
+     "note": "kills: fid<=-$40 wk1 / 4 red days / wr<40%@n>=25 / entries-day "
+             ">20 or <2 x3d = population mismatch -> fix-or-kill, NOT grade."},
+    {"name": "RH slcut SL1 trio (paired vs parents)", "chain": "rh",
+     "arms": ["rh_slcut_agedhold", "rh_slcut_ageddeep", "rh_slcut_demand"],
+     "note": "paired RELATIVE verdict stands; ABSOLUTE promotion needs clean "
+             "fidelity re-grade (first measurement was red)."},
+    {"name": "RH phoenix (post-stop bounce)", "chain": "rh",
+     "arms": ["rh_phoenix"],
+     "note": "kill if deaths eat the bounces or fidelity < -$20."},
+    {"name": "SOL hype-block A/B (entry-source #1)", "chain": "sol",
+     "arms": ["badday_young_hypeblock_ab", "badday_young_absorb"],
+     "note": "clone vs parent; winner-kill <=5%; log daily block-rate."},
+    {"name": "SOL admission arms (volume unlock)", "chain": "sol",
+     "arms": ["admission_x_liq", "admission_x_liqdemand", "admission_x_liq_sl1"],
+     "note": "grade on NG/win/$/entry/buys-day vs the tape, not vs zero."},
+]
+
+BAR = {"n": 30, "days": 5, "tokens": 20}
+
+
+def _get(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "gradebook"})
+    with urllib.request.urlopen(req, timeout=45) as r:
+        return json.loads(r.read().decode())
+
+
+def _dead_set():
+    try:
+        st = os.stat(DEAD_PATH)
+        age_h = (time.time() - st.st_mtime) / 3600
+        dead = set(json.load(open(DEAD_PATH)).get("dead") or [])
+        if age_h > DEAD_MAX_AGE_H:
+            print(f"!! dead-token set is {age_h:.0f}h old (> {DEAD_MAX_AGE_H}h)"
+                  f" — dead re-book SKIPPED. Refresh via rh_fleet_fidelity.")
+            return None
+        return dead
+    except Exception:
+        print("!! no dead-token set — dead re-book skipped (RH numbers are "
+              "phantom-scrubbed only, NOT fully fidelity-corrected)")
+        return None
+
+
+def _ts(s):
+    try:
+        return datetime.fromisoformat(str(s).replace("Z", "+00:00")).timestamp()
+    except Exception:
+        return None
+
+
+def rh_bot_closes(bot, dead):
+    """-> list of {usd, day, token} fidelity-honest closed results."""
+    rows = (_get(f"{BASE}/api/rh-paper?bot={bot}&raw=1").get("rows")) or []
+    pos = defaultdict(lambda: {"usd": 0.0, "tok": None, "buy_ts": None,
+                               "sells": []})
+    for r in rows:
+        k = r.get("pool")
+        if r.get("ev") == "buy":
+            pos[k]["usd"] += abs(r.get("usd") or 25.0)
+            pos[k]["tok"] = r.get("token")
+            pos[k]["buy_ts"] = _ts(r.get("ts"))
+        elif r.get("ev") == "sell" and isinstance(r.get("pnl_usd"),
+                                                  (int, float)):
+            st_, bt = _ts(r.get("ts")), pos[k]["buy_ts"]
+            hold = (st_ - bt) if (st_ and bt) else None
+            pct = r.get("pnl_pct")
+            # phantom scrub (win legs only; fast losses are real)
+            if r["pnl_usd"] > 0 and hold is not None and (
+                    hold < 10.0 or (hold < 300.0
+                                    and isinstance(pct, (int, float))
+                                    and pct > 100.0)):
+                continue
+            pos[k]["sells"].append((r["pnl_usd"], str(r.get("ts"))[:10]))
+    out = []
+    for k, v in pos.items():
+        if not v["sells"]:
+            continue
+        day = v["sells"][-1][1]
+        if dead is not None and v["tok"] in dead:
+            out.append({"usd": -v["usd"], "day": day, "token": v["tok"]})
+        else:
+            out.append({"usd": sum(s for s, _ in v["sells"]), "day": day,
+                        "token": v["tok"]})
+    return out
+
+
+def sol_bot_closes(trades, bot):
+    """SOL closes from /api/trades?full=1 rows (phantom-scrubbed)."""
+    out = []
+    buys = {}
+    for t in trades:
+        if t.get("bot_id") != bot:
+            continue
+        if t.get("side") == "buy":
+            buys[t.get("address")] = t
+        elif t.get("side") == "sell" and isinstance(t.get("pnl_usd"),
+                                                    (int, float)):
+            b = buys.get(t.get("address")) or {}
+            bt, st_ = _ts(b.get("timestamp")), _ts(t.get("timestamp"))
+            hold = (st_ - bt) if (st_ and bt) else None
+            pct = t.get("pnl_pct")
+            if t["pnl_usd"] > 0 and hold is not None and (
+                    hold < 10.0 or (hold < 300.0
+                                    and isinstance(pct, (int, float))
+                                    and pct > 100.0)):
+                continue
+            out.append({"usd": t["pnl_usd"],
+                        "day": str(t.get("timestamp"))[:10],
+                        "token": t.get("address")})
+    return out
+
+
+def grade(closes):
+    n = len(closes)
+    days = len({c["day"] for c in closes})
+    toks = len({c["token"] for c in closes})
+    tot = sum(c["usd"] for c in closes)
+    wins = sum(1 for c in closes if c["usd"] > 0)
+    dt2 = tot - sum(sorted((c["usd"] for c in closes), reverse=True)[:2])
+    met = {"n": n >= BAR["n"], "days": days >= BAR["days"],
+           "tokens": toks >= BAR["tokens"], "dt2_pos": dt2 > 0}
+    at_bar = met["n"] and met["days"] and met["tokens"]
+    return {"n": n, "days": days, "tokens": toks,
+            "fid_usd": round(tot, 2),
+            "per_close": round(tot / n, 3) if n else None,
+            "win_rate": round(wins / n, 3) if n else None,
+            "drop_top2": round(dt2, 2), "bar_met": met,
+            "status": ("GRADE NOW" + ("" if met["dt2_pos"]
+                                      else " (dt2 NEGATIVE)")
+                       if at_bar else
+                       f"below bar (n {n}/{BAR['n']}, d {days}/{BAR['days']},"
+                       f" t {toks}/{BAR['tokens']})")}
+
+
+def main():
+    want_sol = "--sol" in sys.argv
+    dead = _dead_set()
+    sol_trades = None
+    if want_sol:
+        sol_trades = (_get(f"{BASE}/api/trades?full=1&limit=5000")
+                      .get("trades")) or []
+    report = {"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+              "dead_rebooked": dead is not None, "experiments": []}
+    for exp in EXPERIMENTS:
+        if exp["chain"] == "sol" and not want_sol:
+            continue
+        print(f"\n== {exp['name']} ==   ({exp['note'][:70]}…)")
+        rows = []
+        for bot in exp["arms"]:
+            closes = (rh_bot_closes(bot, dead) if exp["chain"] == "rh"
+                      else sol_bot_closes(sol_trades, bot))
+            g = grade(closes)
+            rows.append({"bot": bot, **g})
+            print(f"  {bot:28} n={g['n']:>4} d={g['days']:>2} t={g['tokens']:>3}"
+                  f" fid=${g['fid_usd']:>+9.2f} wr={g['win_rate']}"
+                  f" dt2=${g['drop_top2']:>+8.2f}  {g['status']}")
+        report["experiments"].append({"name": exp["name"], "arms": rows,
+                                      "note": exp["note"]})
+    with open(OUT, "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=1)
+    print(f"\n-> {OUT}")
+
+
+if __name__ == "__main__":
+    main()
