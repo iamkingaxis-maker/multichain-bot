@@ -389,6 +389,16 @@ class LaneBot:
     # wait-for-lower-price rule — proximity-to-low gating tested
     # ANTI-predictive in the same verification.
     knife_skip: bool = False
+    # POOL LOSS LOCKOUT (2026-07-20, the phoenix postmortem — FLEET-WIDE
+    # default ON). Phoenix died of exposure inversion: 148 buys on 28 pools
+    # (5.3/pool) because bleeding pools keep re-generating entry signals
+    # while clean bouncers leave the population — event-weighted 59% bounce
+    # collapsed to 21% exposure-weighted. The structural fix for EVERY bot:
+    # after N losing FULL closes on the same pool inside a rolling 6h
+    # window, that pool is locked out. Caps every bot's exposure to a
+    # bleeder at N stakes instead of "as long as it keeps bleeding".
+    # None = off (measured mechanical cooldown — the allowed exception).
+    pool_loss_lockout_n: Optional[int] = 2
     # CONVICTION BAND (2026-07-19 professional-shape panel): 1.5x entry size
     # when the entry dip falls inside (lo, hi) — the replay's monotone
     # payoff band only (-40..-30: +$0.55-1.18/e); outside it the gradient
@@ -1766,6 +1776,9 @@ class BotState:
         self.day_buys = 0        # entries booked this UTC day (persisted
                                  # same-day like daily_pnl_usd; drives the
                                  # fill probe's max_buys_per_day cap)
+        self.pool_loss_closes = {}  # pool -> [ts of losing FULL closes]
+                                 # (rolling 6h lockout window; in-memory
+                                 # like exit_book — restart fails OPEN)
         self.recent_realized = []  # last <=50 FULL-close realized $ (regime
                                  # layer: rolling-expectancy DIAL stamp —
                                  # STAMP ONLY, never a paper buy-halt;
@@ -2563,6 +2576,11 @@ class PaperLane:
                 # per-racer aged-cohort verdicts (all default-off for the
                 # pre-existing scalp fleet)
                 extra = []
+                if bot.pool_loss_lockout_n is not None:
+                    _ll = [t for t in st.pool_loss_closes.get(pool, ())
+                           if now - t <= 6 * 3600.0]
+                    if len(_ll) >= bot.pool_loss_lockout_n:
+                        extra.append("pool_loss_lockout")
                 if bot.knife_skip:
                     # verified knife signature (memo #2): seller not finished.
                     if sells > buys:
@@ -3231,6 +3249,10 @@ class PaperLane:
             st.exit_book[pool] = {"ts": now,
                                   "loss": meta["realized_usd"] < 0.0,
                                   "token": token}
+            if meta["realized_usd"] < 0.0:
+                ll = st.pool_loss_closes.setdefault(pool, [])
+                ll.append(now)
+                del ll[:-10]
             # expectancy-DIAL record (regime layer): position-level realized,
             # newest last; capped at 50 (the dial reads the last 20)
             st.recent_realized.append(round(meta["realized_usd"], 2))

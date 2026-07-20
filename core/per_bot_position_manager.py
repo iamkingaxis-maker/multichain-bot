@@ -168,6 +168,7 @@ class PerBotPositionManager:
         # before enforce. See the Phase-1 risk-floor spec.
         self._token_buys: dict[str, int] = {}
         self._token_buys_date: Optional[str] = None
+        self._token_loss_closes: dict = {}   # token -> [ts of losing closes]
 
     @property
     def open_count(self) -> int:
@@ -268,6 +269,15 @@ class PerBotPositionManager:
 
     def get_position(self, token: str) -> Optional[OpenPosition]:
         return self._positions.get(token)
+
+    def in_loss_lockout(self, token: str, now: float,
+                        n: int = 2, window_s: float = 6 * 3600.0) -> bool:
+        """True when ``token`` has >= n losing FULL closes inside the rolling
+        window — the pool-loss lockout (phoenix postmortem, fleet-wide)."""
+        ll = self._token_loss_closes.get(token)
+        if not ll:
+            return False
+        return sum(1 for t in ll if now - t <= window_s) >= n
 
     def in_reentry_cooldown(self, token: str, now: float,
                             cooldown_secs: Optional[float]) -> bool:
@@ -389,6 +399,16 @@ class PerBotPositionManager:
             if _total < 0:
                 self._loss_streak += 1
                 self._loss_streak_ts = exit_time
+                # POOL LOSS LOCKOUT record (2026-07-20 phoenix postmortem,
+                # ported to SOL where the disease measured WORSE: 62% of all
+                # buys are 3+-rebuys of the same address carrying -$1,545.
+                # Bleeding tokens keep re-emitting entry signals while clean
+                # bouncers leave the population — exposure concentrates in
+                # the never-bouncers). Rolling record of losing full closes;
+                # dip_scanner enforces the lockout at entry.
+                _ll = self._token_loss_closes.setdefault(token, [])
+                _ll.append(exit_time)
+                del _ll[:-10]
             else:
                 self._loss_streak = 0
         return CloseResult(

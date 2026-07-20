@@ -153,6 +153,11 @@ class BotConfig:
     # Apply to badday_young/flush lanes only — admission lanes already gate
     # this axis implicitly (within-family AUC 0.53-0.59) and stay exempt.
     hype_block: bool = False
+    # POOL LOSS LOCKOUT opt-out (2026-07-20): the lockout (2 losing full
+    # closes on a token in 6h -> token locked for this bot) is FLEET-WIDE
+    # default ON — the phoenix-postmortem exposure-inversion fix. Set true
+    # only for a deliberate A/B control arm.
+    loss_lockout_disabled: bool = False
     pre_stop_bail_pnl_pct: float = -3.0
     pre_stop_bail_vol_m5_max: float = 500.0
     slow_bleed_minutes: int = 60

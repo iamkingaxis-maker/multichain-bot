@@ -1865,6 +1865,22 @@ class DipScanner:
                 bot_id, decision.token,
             )
             return
+        # POOL LOSS LOCKOUT (2026-07-20 phoenix postmortem, fleet-wide both
+        # chains): after 2 losing FULL closes on the same token inside a
+        # rolling 6h window, the token is locked for this bot. SOL measured
+        # 62% of all buys as 3+-rebuys of the same address carrying -$1,545 —
+        # bleeding tokens keep re-emitting entry signals while clean bouncers
+        # leave the population, so exposure concentrates in never-bouncers.
+        # Default ON; per-bot opt-out via config loss_lockout_disabled.
+        _ll_check = getattr(pm, "in_loss_lockout", None)
+        if (_ll_check is not None
+                and not getattr(pm.config, "loss_lockout_disabled", False)
+                and _ll_check(decision.token, time.time())):
+            logger.info(
+                "[DipScanner] bot=%s pool-loss lockout active for %s; skip",
+                bot_id, decision.token,
+            )
+            return
         # STREAK-LATCH drop-list (2026-07-03 swing-latch study): a streak_latch
         # bot rides a token's swings only while they keep WINNING — after any
         # losing sell leg the token was dropped permanently (stamped at close).
