@@ -159,6 +159,11 @@ class BotConfig:
     # only for a deliberate A/B control arm.
     loss_lockout_disabled: bool = False
     pre_stop_bail_pnl_pct: float = -3.0
+    # BAIL-FRACTIONALIZATION A/B (2026-07-20 exit memo #2): PRE_STOP_BAIL
+    # closes this fraction instead of 1.0 (pre-TP1 full-size bails = 10x
+    # SL1's event count at median -4.76%/61s, inside the bounce zone).
+    # Default 1.0 = fleet byte-identical; opt-in arms only.
+    pre_stop_bail_sell_fraction: float = 1.0
     pre_stop_bail_vol_m5_max: float = 500.0
     slow_bleed_minutes: int = 60
     slow_bleed_pnl_threshold: float = -8.0

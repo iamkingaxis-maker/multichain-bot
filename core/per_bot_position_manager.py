@@ -1050,13 +1050,21 @@ class PerBotPositionManager:
             and pnl_pct <= self.config.pre_stop_bail_pnl_pct
             and vol_m5_usd <= self.config.pre_stop_bail_vol_m5_max
         ):
+            # BAIL-FRACTIONALIZATION A/B (2026-07-20 exit memo #2, verified):
+            # PRE_STOP_BAIL closes FULL-SIZE 10x more often than SL1 fires,
+            # at median -4.76% / 61s — inside the phoenix bounce zone. Opt-in
+            # arms close bail_sell_fraction instead (retained tail falls
+            # under the existing machinery: hard stop / TP / bail-at-rest).
+            # Default 1.0 = fleet byte-identical.
+            _bail_frac = float(getattr(self.config,
+                                       "pre_stop_bail_sell_fraction", 1.0))
             decisions.append(ExitDecision(
                 token=token, kind="PRE_STOP_BAIL",
                 reason=(
                     f"pre-stop bail pnl={pnl_pct:.2f}% vol_m5=${vol_m5_usd:.0f}"
                     f" <= {self.config.pre_stop_bail_vol_m5_max}"
                 ),
-                sell_fraction=1.0,
+                sell_fraction=_bail_frac,
             ))
             return decisions
 

@@ -462,12 +462,17 @@ class LaneBot:
     # ── LIVE FILL PROBE plumbing (2026-07-12; both default None = every
     # pre-existing racer is byte-identical) ──────────────────────────────────
     entry_usd: Optional[float] = None           # None = lane ENTRY_USD ($25)
+    # exit memo #2 (2026-07-20): PRE_STOP_BAIL fraction (1.0 = full close,
+    # the fleet default; the A/B arm banks 0.75 and lets the tail ride).
+    pre_stop_bail_sell_fraction: float = 1.0
     max_buys_per_day: Optional[int] = None      # UTC-day entry cap; None=off
 
     def bot_config(self) -> BotConfig:
         kw = {}
         if self.trail_pp is not None:
             kw["trail_pp"] = self.trail_pp
+        if self.pre_stop_bail_sell_fraction != 1.0:
+            kw["pre_stop_bail_sell_fraction"] = self.pre_stop_bail_sell_fraction
         return BotConfig(
             bot_id=self.bot_id, display_name=self.bot_id,
             tp1_pct=self.tp1_pct, tp1_sell_fraction=self.tp1_sell_fraction,
@@ -566,6 +571,29 @@ ROSTER = (
             tp2_pct=AGED_TP2_PCT, tp2_sell_fraction=0.30,
             trail_pp=AGED_TRAIL_PP,
             exclusion_group="aged", regime_hours=True),
+    # ── EXIT-MEMO A/B PAIR (2026-07-20, EXIT_SOURCE_MEMO ship list #1+#2;
+    # both verified survivors). PRE-REGISTERED bars in the memo.
+    #   rh_bailfrac_ab = aged_hold clone + PRE_STOP_BAIL banks 0.75 (the
+    #     bail = 10x SL1's event count, full-size, median -4.76%/61s —
+    #     inside the +16.2% bounce zone). OWN group -> paired same-token
+    #     A/B vs parent. Grade: bail-fractionalized positions net-$ vs the
+    #     parent's full-close cohort; kill if tail-cohort net < full-close.
+    #   rh_young_agedladder_ab = young_v1 clone + the aged TP side (tp2 16,
+    #     trail 10 — memo #1: short-ladder bots close winners at 1.4-2.3min
+    #     capturing 7-21% of MFE; +0.45-0.84pp/trade, 11/11 days). Loss
+    #     side untouched. Kill: ex-top-2 negative or delta<0 at n>=30.
+    LaneBot(bot_id="rh_bailfrac_ab",
+            min_pool_age_h=AGED_MIN_POOL_AGE_H,
+            tp1_pct=AGED_TP1_PCT, tp1_sell_fraction=0.50,
+            tp2_pct=AGED_TP2_PCT, tp2_sell_fraction=0.30,
+            trail_pp=AGED_TRAIL_PP,
+            pre_stop_bail_sell_fraction=0.75,
+            regime_hours=True),
+    LaneBot(bot_id="rh_young_agedladder_ab",
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H,
+            tp1_pct=6.0, tp1_sell_fraction=0.50,
+            tp2_pct=16.0, tp2_sell_fraction=0.30,
+            trail_pp=10.0),
     LaneBot(bot_id="rh_aged_derisk",
             min_pool_age_h=AGED_MIN_POOL_AGE_H,
             tp1_pct=AGED_TP1_PCT, tp1_sell_fraction=0.75,

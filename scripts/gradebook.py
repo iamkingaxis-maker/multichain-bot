@@ -51,6 +51,11 @@ EXPERIMENTS = [
      "note": "reclaim>=2% above stop print + one bite ever. Same kills as v1 "
              "(fid<-$20 at n>=30, deaths eat bounces), fresh clock. v1 died "
              "-$122/n=57 of exposure inversion (postmortem in memory)."},
+    {"name": "RH exit-memo A/Bs (#1 ladder, #2 bail-frac)", "chain": "rh",
+     "arms": ["rh_bailfrac_ab", "rh_aged_hold",
+              "rh_young_agedladder_ab", "rh_young_v1"],
+     "note": "bailfrac vs aged_hold (paired); agedladder vs young_v1. Kills: "
+             "tail-cohort < full-close; ex-top-2 negative at n>=30."},
     {"name": "SOL hype-block A/B (entry-source #1)", "chain": "sol",
      "arms": ["badday_young_hypeblock_ab", "badday_young_absorb"],
      "note": "clone vs parent; winner-kill <=5%; log daily block-rate."},
