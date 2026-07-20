@@ -46,9 +46,11 @@ EXPERIMENTS = [
      "arms": ["rh_slcut_agedhold", "rh_slcut_ageddeep", "rh_slcut_demand"],
      "note": "paired RELATIVE verdict stands; ABSOLUTE promotion needs clean "
              "fidelity re-grade (first measurement was red)."},
-    {"name": "RH phoenix (post-stop bounce)", "chain": "rh",
-     "arms": ["rh_phoenix"],
-     "note": "kill if deaths eat the bounces or fidelity < -$20."},
+    {"name": "RH phoenix2 (RECLAIM entry, replaces v1 07-20)", "chain": "rh",
+     "arms": ["rh_phoenix2"],
+     "note": "reclaim>=2% above stop print + one bite ever. Same kills as v1 "
+             "(fid<-$20 at n>=30, deaths eat bounces), fresh clock. v1 died "
+             "-$122/n=57 of exposure inversion (postmortem in memory)."},
     {"name": "SOL hype-block A/B (entry-source #1)", "chain": "sol",
      "arms": ["badday_young_hypeblock_ab", "badday_young_absorb"],
      "note": "clone vs parent; winner-kill <=5%; log daily block-rate."},

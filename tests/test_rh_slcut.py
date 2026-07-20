@@ -156,7 +156,7 @@ def test_roster_sl1_bots_and_no_leak():
     assert {b.bot_id for b in slcut} == {"rh_slcut_ageddeep",
                                          "rh_slcut_agedhold",
                                          "rh_slcut_demand",
-                                         "rh_phoenix",
+                                         "rh_phoenix2",
                                          "rh_dipall_ctrl",
                                          "rh_dipall_knife",
                                          "rh_dipall_young1h",
@@ -169,9 +169,13 @@ def test_roster_sl1_bots_and_no_leak():
 
 
 def test_phoenix_inverted_entry_config():
-    p = [b for b in mod.ROSTER if b.bot_id == "rh_phoenix"][0]
+    # phoenix2 (2026-07-20): RECLAIM entry replaces v1's further-dip shape
+    # (the exposure-inversion postmortem), one bite per pool ever.
+    p = [b for b in mod.ROSTER if b.bot_id == "rh_phoenix2"][0]
     assert p.phoenix_entry is True and p.phoenix_window_s == 3600.0
+    assert p.phoenix_reclaim_pct == 2.0
+    assert p.first_touch_only is True and p.max_bites_per_token == 1
     assert p.exclusion_group is None      # sibling-stop must NOT re-block it
     # every non-phoenix bot keeps the flag off (the exclusion rule stands)
     assert all(not b.phoenix_entry for b in mod.ROSTER
-               if b.bot_id != "rh_phoenix")
+               if b.bot_id != "rh_phoenix2")

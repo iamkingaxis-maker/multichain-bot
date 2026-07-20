@@ -367,6 +367,9 @@ class LaneBot:
     # confirm the turn (the lane's base-confirmation equivalent).
     phoenix_entry: bool = False
     phoenix_window_s: float = 3600.0
+    # phoenix2: required reclaim ABOVE the stop print (%) before entry.
+    # None = v1 behavior (further-dip entry — the refuted shape).
+    phoenix_reclaim_pct: Optional[float] = None
     # ── AGED-POOL racer machinery (2026-07-11; all default OFF so every
     # pre-existing racer is byte-identical — their A/B is mid-flight) ────────
     # cross-sibling token exclusion (Solana young_pond mirror): racers sharing
@@ -1135,8 +1138,21 @@ ROSTER = (
     # exclusion_group: sibling-stop semantics must not re-block it.
     # PRE-REGISTERED: grade at n>=30 closes on net $/entry + win-rate +
     # cat-rate; kill if the deaths eat the bounces.
-    LaneBot(bot_id="rh_phoenix",
+    # PHOENIX2 (2026-07-20, replaces v1 — AxiS: "fix it instead of killing").
+    # v1 died at fid -$122/n=57, wr 25%: exposure inversion (148 buys/28
+    # pools — bleeding pools re-emit stop signals; clean bouncers leave the
+    # population) + further-dip entry (conditioning on continued decline
+    # selects never-bouncers; fast bouncers never re-dip through the gate).
+    # The BOUNCE ITSELF stayed verified (+16.2% median above exits). Fixes:
+    # (1) RECLAIM entry — price back >=2% ABOVE the stop print (bounce has
+    # started; the pro-seat panel's reclaim/base-confirm logic); (2) ONE bite
+    # per pool ever (max_bites=1 + first_touch) on top of the fleet lockout;
+    # (3) demand-turn still required. Same exits + SL1. PRE-REGISTERED: same
+    # kill lines as v1 (fid<-$20 at n>=30, deaths eat bounces) — fresh clock.
+    LaneBot(bot_id="rh_phoenix2",
             phoenix_entry=True, phoenix_window_s=3600.0,
+            phoenix_reclaim_pct=2.0,
+            first_touch_only=True, max_bites_per_token=1,
             dip_trigger_pct=-8.0,
             min_liq_usd=10_000.0,
             min_pool_age_h=0.0,
@@ -2519,8 +2535,8 @@ class PaperLane:
             for pool_, info_ in st_.exit_book.items():
                 if info_.get("loss"):
                     ts_ = float(info_.get("ts") or 0)
-                    if ts_ > fleet_loss_stops.get(pool_, 0.0):
-                        fleet_loss_stops[pool_] = ts_
+                    if ts_ > fleet_loss_stops.get(pool_, (0.0, None))[0]:
+                        fleet_loss_stops[pool_] = (ts_, info_.get("px"))
         for pool, series in list(self.prices.items()):
             w = self.feed.watch.get(pool)
             if not w:
@@ -2591,9 +2607,22 @@ class PaperLane:
                 if bot.phoenix_entry:
                     # inverted sibling-stop rule: REQUIRE a recent fleet
                     # loss-stop on this pool (the bottom-marker)
-                    ts_stop = fleet_loss_stops.get(pool, 0.0)
+                    ts_stop, stop_px = fleet_loss_stops.get(pool, (0.0, None))
                     if not ts_stop or (now - ts_stop) > bot.phoenix_window_s:
                         extra.append("no_recent_stop")
+                    elif bot.phoenix_reclaim_pct is not None:
+                        # PHOENIX2 (2026-07-20 postmortem): enter on RECLAIM,
+                        # never on further weakness. v1 required a further dip
+                        # below the stop — conditioning on continued decline
+                        # selected the never-bouncers (21% exposure-weighted
+                        # wr). Reclaim = price back ABOVE the stop print by
+                        # this % — the bounce has STARTED. Fail-closed when
+                        # either price is unknown.
+                        px_now = series[-1][1] if series else None
+                        if not (px_now and stop_px and px_now
+                                >= stop_px * (1 + bot.phoenix_reclaim_pct
+                                              / 100.0)):
+                            extra.append("no_reclaim")
                 if bot.exclusion_group:
                     ek = excl_keys.get(bot.bot_id) or set()
                     if pool in ek or (cand_token and cand_token in ek):
@@ -3248,7 +3277,8 @@ class PaperLane:
             st.last_exit[pool] = now
             st.exit_book[pool] = {"ts": now,
                                   "loss": meta["realized_usd"] < 0.0,
-                                  "token": token}
+                                  "token": token,
+                                  "px": exit_px}
             if meta["realized_usd"] < 0.0:
                 ll = st.pool_loss_closes.setdefault(pool, [])
                 ll.append(now)
