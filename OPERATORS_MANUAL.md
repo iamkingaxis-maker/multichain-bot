@@ -44,6 +44,7 @@ Every rule here was paid for with real losses or verified with adversarial check
 - Possible V3 feature: per-window DEAD-COMMIT RATE (the 9:1 signal) — needs per-window dead-token attribution wired into the sensor before it can be a criterion.
 
 ## 5. DAILY GATE CYCLE (the /loop, restart it each session)
+**CAREER MODE (07-20, REVENUE_PLAN.md):** every pass ALSO runs `python scripts/revenue_check.py` (distance-to-revenue: go-live gate status + today's blockers); once per daily cycle run the **desk-review workflow** (`Workflow({name:"desk-review"})`) → the daily desk memo with THE one most valuable action. Distance-to-revenue is reported to AxiS on every check.
 1. Freshness + market analysis (rule 1, 4) → `/api/regime`, both chains.
 2. Pipes: ledger-upload count in lane logs, fidelity_ts age <45min, zero Tracebacks.
 3. Big-number audit (rule 3) on any ±$50 bot day.
