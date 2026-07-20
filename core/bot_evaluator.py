@@ -1417,6 +1417,17 @@ class BotEvaluator:
                     return False
                 if _op == "<=" and _v > _thr:
                     return False
+        # HYPE BLOCK (2026-07-19 entry-source memo #1, verified STRONG): dip
+        # into a fresh-attention blowoff deflation = distribution with no bid.
+        # Compound block (peak AND fresh) is not expressible in entry_gate's
+        # AND-to-pass semantics, hence the dedicated flag. Fail-OPEN when
+        # either field is missing.
+        if getattr(c, "hype_block", False):
+            _pk = b.raw_meta.get("h1_peak_in_window")
+            _fr = b.raw_meta.get("attn_profile_fresh")
+            if (isinstance(_pk, (int, float)) and _pk >= 150.0
+                    and isinstance(_fr, (int, float)) and _fr >= 1):
+                return False
         # Per-bot 15m-RSI oversold gate (2026-06-28, rsi_oversold_ab A/B). Default
         # None = disabled (every other bot byte-identical — this branch is skipped).
         # When set, the bot fires only on tokens whose 15m RSI is KNOWN and <= the cap.

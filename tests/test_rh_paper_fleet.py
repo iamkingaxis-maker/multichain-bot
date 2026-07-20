@@ -306,10 +306,14 @@ class TestFleetEntryRouting:
         # its parent rh_stable_ageddeep, but its OWN "slcut" group -> enters
         # alongside (paired A/B on the same token is the whole design; its two
         # slcut siblings are group-deduped/blocked the same way the parents are).
+        # + the dipall entry-source quartet (2026-07-19): all four arms pass
+        # on this aged synthetic pool (own-bot ids, no exclusion_group).
         assert entered == {"rh_young_v1", "rh_first_touch", "rh_bites2",
                            "rh_wide_ladder", "rh_moonbag", "rh_liq40",
                            "rh_aged_hold", "rh_fill_probe", "rh_lowvar_catstop",
-                           "rh_stable_ageddeep", "rh_slcut_ageddeep"}
+                           "rh_stable_ageddeep", "rh_slcut_ageddeep",
+                           "rh_dipall_ctrl", "rh_dipall_knife",
+                           "rh_dipall_young1h", "rh_dipall_both"}
         assert "no_dip" in lane.state["rh_deep_only"].block_hist
         assert "no_dip" in lane.state["rh_deep_consolidated"].block_hist
         assert "no_demand_turn" in lane.state["rh_demand_heavy"].block_hist
@@ -372,11 +376,14 @@ class TestFleetEntryRouting:
         # + 1 lowvar (group-deduped: catstop, not box) + 1 stable (ageddeep;
         # its two "stable" siblings are demand/dip-blocked) + 1 slcut (the SL1
         # A/B racer, own group, enters beside its parent by design) = 11
-        assert len(buys) == 11
+        # + the 2026-07-19 dipall entry-source quartet: this synthetic pool
+        # (aged 5h in the fixture) passes ctrl+knife arms and, being >1h,
+        # ALSO passes young1h+both -> all 4 enter (no exclusion_group) = 15
+        assert len(buys) == 15
         assert all(r.get("bot_id") for r in buys)
         # dashboard ingest de-dups on (ts, ev, pool): keys must be distinct
         keys = {(r["ts"], r["ev"], r["pool"]) for r in buys}
-        assert len(keys) == 11
+        assert len(keys) == 15
 
     def test_launch_scalp_enters_on_strength_not_dip(self, tmp_path,
                                                      monkeypatch):

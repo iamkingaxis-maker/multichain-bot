@@ -380,6 +380,15 @@ class LaneBot:
     # flat cooldown would block the deep winners the gate exists to catch).
     reentry_min_dip_pct: Optional[float] = None
     reentry_min_vol_m5_usd: float = REENTRY_MIN_VOL_M5
+    # KNIFE SKIP (2026-07-19 entry-source memo, verified finding: 19.1% of
+    # replay entries never bounce >=3% before dropping >=10% more and carry
+    # 177% of ALL drag; their t0 signature = still-sell-dominated 30s tape
+    # OR shallow dip inside a deep unrecovered drawdown — the seller is not
+    # finished). Gate: skip when s30>b30, or when dip>-8 while arc<-15
+    # (arc = pct vs session-first px, the lane's athdd proxy). NO
+    # wait-for-lower-price rule — proximity-to-low gating tested
+    # ANTI-predictive in the same verification.
+    knife_skip: bool = False
     # rug-tail defense: derisk_after_s into a hold, force remaining exposure
     # down to derisk_max_frac (per-position catastrophe cap). None = off.
     derisk_after_s: Optional[float] = None
@@ -1119,6 +1128,38 @@ ROSTER = (
             tp2_pct=14.0, tp2_sell_fraction=0.25,
             trail_pp=6.0,
             hard_stop_pct=-12.0,
+            sl1_pct=-6.0, sl1_sell_fraction=0.75,
+            max_concurrent=2),
+    # ── ENTRY-SOURCE A/B QUARTET (2026-07-19 memo, verified findings #2+#3:
+    # 19.1% strict-knives carry 177% of the replay's drag [s30>b30 or
+    # shallow-dip-in-deep-drawdown = seller not finished, 21/26 days]; and
+    # blanket age<1h dominates the flow-refined carve-out [-1.050 vs -1.226
+    # honest, quiet-young pools WORSE at -3.07]). Four arms on ONE common
+    # broad-age dip population isolate each filter and their overlap —
+    # ctrl / knife-only / young-only / both. arc<-15 proxies the replay's
+    # athdd (drawdown vs session-first px; the lane has no true ATH).
+    # PRE-REGISTERED: fidelity-corrected grading; success for knife = bleed
+    # halved (kept lane may stay mildly red); n>=30 affected slots, >=5 days,
+    # kept-beats-skipped >=70% of days. Shadow: skipped entries are visible
+    # as knife_* block reasons in the ledger (the counterfactual arm).
+    LaneBot(bot_id="rh_dipall_ctrl",
+            dip_trigger_pct=-8.0, min_liq_usd=10_000.0,
+            min_pool_age_h=0.0,
+            sl1_pct=-6.0, sl1_sell_fraction=0.75,
+            max_concurrent=2),
+    LaneBot(bot_id="rh_dipall_knife",
+            dip_trigger_pct=-8.0, min_liq_usd=10_000.0,
+            min_pool_age_h=0.0, knife_skip=True,
+            sl1_pct=-6.0, sl1_sell_fraction=0.75,
+            max_concurrent=2),
+    LaneBot(bot_id="rh_dipall_young1h",
+            dip_trigger_pct=-8.0, min_liq_usd=10_000.0,
+            min_pool_age_h=1.0,
+            sl1_pct=-6.0, sl1_sell_fraction=0.75,
+            max_concurrent=2),
+    LaneBot(bot_id="rh_dipall_both",
+            dip_trigger_pct=-8.0, min_liq_usd=10_000.0,
+            min_pool_age_h=1.0, knife_skip=True,
             sl1_pct=-6.0, sl1_sell_fraction=0.75,
             max_concurrent=2),
 )
@@ -2484,6 +2525,13 @@ class PaperLane:
                 # per-racer aged-cohort verdicts (all default-off for the
                 # pre-existing scalp fleet)
                 extra = []
+                if bot.knife_skip:
+                    # verified knife signature (memo #2): seller not finished.
+                    if sells > buys:
+                        extra.append("knife_sell_dom")
+                    elif (d is not None and d > -8.0
+                          and isinstance(arc, (int, float)) and arc < -15.0):
+                        extra.append("knife_shallow_deep")
                 if bot.phoenix_entry:
                     # inverted sibling-stop rule: REQUIRE a recent fleet
                     # loss-stop on this pool (the bottom-marker)

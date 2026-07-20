@@ -150,10 +150,17 @@ def test_roster_sl1_bots_and_no_leak():
     # catcher stacks the validated SL1 — its 28% true-death class rides only
     # 25% past -6). Every other bot: sl1 OFF (byte-identical fleet).
     slcut = [b for b in mod.ROSTER if b.sl1_pct is not None]
+    # + the 2026-07-19 entry-source dipall quartet (ctrl/knife/young/both),
+    # which stacks the validated SL1 on all four arms so the A/B isolates
+    # the ENTRY filters, not the exit ladder.
     assert {b.bot_id for b in slcut} == {"rh_slcut_ageddeep",
                                          "rh_slcut_agedhold",
                                          "rh_slcut_demand",
-                                         "rh_phoenix"}
+                                         "rh_phoenix",
+                                         "rh_dipall_ctrl",
+                                         "rh_dipall_knife",
+                                         "rh_dipall_young1h",
+                                         "rh_dipall_both"}
     assert all(b.sl1_pct == -6.0 and b.sl1_sell_fraction == 0.75
                for b in slcut)
     assert all(b.sl1_pct is None for b in mod.ROSTER

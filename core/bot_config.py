@@ -144,6 +144,15 @@ class BotConfig:
     # -9.68% while TP1 banks partials). None = OFF (byte-identical default).
     sl1_pct: Optional[float] = None
     sl1_sell_fraction: float = 0.75
+    # HYPE BLOCK (2026-07-19 entry-source memo #1 — the only STRONG verified
+    # finding): never-green SOL entries are dip-buys into the deflation of a
+    # fresh-attention blowoff (h1_peak_in_window median +162% for NG vs +56%
+    # winners, AUC 0.73; the pump WAS the exit event). Block entry when
+    # h1_peak_in_window >= 150 AND attn_profile_fresh == 1. Fail-OPEN on
+    # missing fields (both are stamped by dip_scanner trajectory_features).
+    # Apply to badday_young/flush lanes only — admission lanes already gate
+    # this axis implicitly (within-family AUC 0.53-0.59) and stay exempt.
+    hype_block: bool = False
     pre_stop_bail_pnl_pct: float = -3.0
     pre_stop_bail_vol_m5_max: float = 500.0
     slow_bleed_minutes: int = 60
