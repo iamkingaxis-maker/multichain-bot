@@ -389,6 +389,12 @@ class LaneBot:
     # wait-for-lower-price rule — proximity-to-low gating tested
     # ANTI-predictive in the same verification.
     knife_skip: bool = False
+    # CONVICTION BAND (2026-07-19 professional-shape panel): 1.5x entry size
+    # when the entry dip falls inside (lo, hi) — the replay's monotone
+    # payoff band only (-40..-30: +$0.55-1.18/e); outside it the gradient
+    # breaks, so tiers never apply below -40. None = flat sizing.
+    conviction_band: Optional[tuple] = None
+    conviction_mult: float = 1.5
     # rug-tail defense: derisk_after_s into a hold, force remaining exposure
     # down to derisk_max_frac (per-position catastrophe cap). None = off.
     derisk_after_s: Optional[float] = None
@@ -1162,6 +1168,38 @@ ROSTER = (
             min_pool_age_h=1.0, knife_skip=True,
             sl1_pct=-6.0, sl1_sell_fraction=0.75,
             max_concurrent=2),
+    # ── THE PROFESSIONAL-SHAPE SEAT (2026-07-19 judge-panel synthesis:
+    # 3 Fable designers x 3 adversarial judges -> rh_pro_agedflush). The
+    # concentrated seat: aged pools (>=24h, the honest band), deep flushes
+    # (<=-25, NO depth floor — sub--40 verified weakly-positive with zero
+    # dead exposure; the rug gate covers rug-shaped distribution), demand
+    # must be REAL (>=$50 buys AND net-buy 30s tape; knife_skip = drift
+    # insurance), session proven (>=16k vol), 15-buy/day budget, one bite
+    # per pool per day. Conviction 1.5x ONLY in the monotone -40..-30 band.
+    # Exits = the triple-validated aged_sl1 ladder. Replay: n=131, +$1.54/e,
+    # wr 66%, dt2 +$172, 13/16 days green; PLAN ON THE P10 (+$113/16d), not
+    # the headline. Forward honest range: +$0.25-0.90/e at 5-10 e/day.
+    # PRE-REGISTERED KILLS: any surviving dead-token win = instrument halt;
+    # fid <= -$40 wk1 or 4 red days; wr<40% @ n>=25; entries/day >20 or <2
+    # for 3d (population mismatch — fix or kill, do NOT grade); vol/liq
+    # gates blocking >50% of passers = recalibrate + restart clock.
+    # Gate-decision visibility = the lane's block_hist + ledger reasons
+    # (population-drift audit is load-bearing, not telemetry).
+    LaneBot(bot_id="rh_pro_agedflush",
+            dip_trigger_pct=-25.0,
+            min_pool_age_h=24.0,
+            min_liq_usd=30_000.0,
+            demand_min_buy_usd=50.0, min_buys_30s=1,
+            knife_skip=True,
+            min_session_vol_usd=16_000.0,
+            max_buys_per_day=15,
+            reentry_cooldown_s=86_400.0,
+            max_concurrent=3, max_rt_cost_pct=6.0,
+            conviction_band=(-40.0, -30.0),
+            tp1_pct=6.0, tp1_sell_fraction=0.50,
+            tp2_pct=16.0, tp2_sell_fraction=0.30,
+            trail_pp=10.0, hard_stop_pct=-15.0,
+            sl1_pct=-6.0, sl1_sell_fraction=0.75),
 )
 
 
@@ -2742,6 +2780,10 @@ class PaperLane:
             # book the shared quote fill (scaled to their entry size).
             size_usd = (st.bot.entry_usd if st.bot.entry_usd is not None
                         else ENTRY_USD)
+            if (st.bot.conviction_band and dip is not None
+                    and st.bot.conviction_band[0] <= dip
+                    <= st.bot.conviction_band[1]):
+                size_usd *= st.bot.conviction_mult
             bot_px, bot_qty, live_leg = px, qty * (size_usd / ENTRY_USD), None
             if live_route_open(st.bot.bot_id):
                 live_leg = self._live_buy_leg(st.bot.bot_id, pool, token,
