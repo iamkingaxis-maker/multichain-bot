@@ -1,0 +1,92 @@
+{
+  "age_h_max": null,
+  "age_h_min": 0.5,
+  "alpha_multiplier": 1.0,
+  "base_position_usd": 22.5,
+  "bot_id": "badday_ngfast_ab",
+  "btc_macro_h1_block_threshold": null,
+  "daily_loss_limit_usd": 40.0,
+  "display_name": "NG-FASTSTOP ENFORCE A/B (2026-07-20 exit memo #4, verified): clone of badday_young_absorb + ng_faststop ACTING (peak<+2% arms; full close at the -4 tick, 90s min-hold \u2014 sol_bail churn lesson). Diagnosis: IN_FLIGHT_FLOOR = 65% of gross loss, fills median -10.05 vs -7 intent, only 11.3% of fired never-greens recover; SOL dips continue so waiting for the floor guarantees a worse fill. HONEST EXPECTATION: +$37/day-scale AFTER the measured -1.83pp decision-to-fill gap; at -2.55pp it goes NEGATIVE \u2014 the entire economics is the gap. PRE-REGISTERED: n>=30 live-vs-shadow parity, grade SPECIFICALLY enforced-fill vs stamped-fire (ng_faststop_pnl_at_fire stamps); KILL if measured gap >=2.5pp or winner-kill >20% (sim 17.5%). Own exclusion pool = paired vs parent.",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "unique_buyers_n",
+      ">=",
+      10
+    ],
+    [
+      "wash_suspected",
+      "<=",
+      0
+    ],
+    [
+      "liquidity_usd",
+      ">=",
+      25000
+    ],
+    [
+      "pc_h1",
+      "<=",
+      -30
+    ],
+    [
+      "net_flow_15s_imbalance",
+      ">=",
+      0
+    ]
+  ],
+  "entry_gate_require_data": true,
+  "entry_stack_exempt": true,
+  "exclusion_pool": "badday_ngfast_ab",
+  "fast_bail_pnl_pct": -9.0,
+  "filters_disabled": [],
+  "filters_enforced": [
+    "filter_btc_overheat",
+    "filter_consec_red",
+    "filter_huge_wick"
+  ],
+  "giveback_floor_peak_min": 4.0,
+  "giveback_floor_pnl_pct": -6.0,
+  "hard_stop_pct": -12.0,
+  "liq_exit_floor_enforce": true,
+  "live_probe": false,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 2,
+  "mcap_max": 1000000.0,
+  "mcap_min": 100000.0,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_triggers_to_fire": 1,
+  "never_runner_exit_enabled": true,
+  "never_runner_loss_floor": -6.0,
+  "never_runner_minutes": 45,
+  "never_runner_peak_max": 3.0,
+  "ng_faststop_exit_enabled": true,
+  "ng_scorer_gate": false,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pre_stop_bail_pnl_pct": -3.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "premium_runner_multiplier": 1.0,
+  "regime_dial_exempt": true,
+  "require_alpha_trigger": false,
+  "slow_bleed_minutes": 45,
+  "slow_bleed_pnl_threshold": -8.0,
+  "sol_macro_h1_block_threshold": null,
+  "sol_macro_h6_block_threshold": null,
+  "tp1_pct": 6.0,
+  "tp1_sell_fraction": 0.75,
+  "tp2_pct": 12.0,
+  "tp2_sell_fraction": 0.25,
+  "trading_hour_utc_end": 24,
+  "trading_hour_utc_start": 0,
+  "trail_pp": 2.0,
+  "triggers_allowed": null,
+  "triggers_disabled": [
+    "demand_bottom_compound"
+  ],
+  "vol_h1_min": 50000.0,
+  "young_token_probe": true
+}

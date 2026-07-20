@@ -2416,6 +2416,44 @@ class PaperLane:
         except Exception:
             return None  # unknown age -> gate has no signal (fail-open)
 
+    def _recycled_flow_flags(self, pool: str, now: float,
+                             window_s: float = 600.0):
+        """Entry memo #6 SHADOW stamp (never blocks): buy-side authenticity
+        of the trailing tape window. wash_n = makers printing BOTH sides;
+        rt_buy_usd = buy volume from makers with a PRIOR sell in the tracked
+        tape (round-trippers). None when the tape has no makers (quiet tapes
+        PASSED in the verified analysis — absence of flow is not a flag)."""
+        try:
+            rows = self.tape.get(pool, [])
+            buys_by, sells_by = {}, {}
+            first_sell_ts = {}
+            for r in rows:
+                mk, ts_ = r.get("maker"), r.get("_epoch")
+                if not mk or ts_ is None:
+                    continue
+                v = float(r.get("volume_usd") or 0)
+                if r.get("kind") == "sell":
+                    first_sell_ts.setdefault(mk, ts_)
+                if now - ts_ > window_s:
+                    continue
+                if r.get("kind") == "buy":
+                    buys_by[mk] = buys_by.get(mk, 0.0) + v
+                elif r.get("kind") == "sell":
+                    sells_by[mk] = sells_by.get(mk, 0.0) + v
+            if not buys_by and not sells_by:
+                return None
+            wash = set(buys_by) & set(sells_by)
+            rt_usd = sum(v for mk, v in buys_by.items()
+                         if mk in first_sell_ts
+                         and first_sell_ts[mk] < now - 1)
+            return {"wash_n": len(wash),
+                    "wash_usd": round(sum(buys_by[m] + sells_by[m]
+                                          for m in wash), 2),
+                    "rt_buy_usd": round(rt_usd, 2),
+                    "n_buyers": len(buys_by)}
+        except Exception:
+            return None   # shadow stamp must never break the buy path
+
     # ── regime detection (pool-discovery rate -> bot era vs human era) ──────
     def _track_new_pools(self, now: float):
         """Count NEWLY-discovered candidate/watched pools. First call seeds
@@ -2914,6 +2952,16 @@ class PaperLane:
                        "deadtape_would_skip": deadtape_skip,
                        "deadtape_min_trades": (dt_min if dt_shadow else None),
                    },
+                   # RECYCLED-FLOW SHADOW (2026-07-19 entry memo #6 — LOG
+                   # ONLY, no gate: the finding verified only weak (93.5% of
+                   # tape evidence was one day). Stamp per-entry so the
+                   # cross-day regrade needs no new tape infra: over the
+                   # trailing 600s of this pool's tape, (a) wash = makers on
+                   # BOTH sides, (b) rt_buy_usd = buy volume from makers with
+                   # a PRIOR sell in the tracked tape. If it confirms at
+                   # n>=30 across >=3 tape days, it becomes the demand
+                   # gates' fix (34/36 live entries were flagged).
+                   "flow_flags": self._recycled_flow_flags(pool, now),
                    "lat_trigger_lag_s": trigger_lag,
                    "lat_quote_s": lat_quote,
                    "lat_quote_buy_s": lat_quote_buy,

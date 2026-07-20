@@ -59,6 +59,10 @@ EXPERIMENTS = [
     {"name": "SOL hype-block A/B (entry-source #1)", "chain": "sol",
      "arms": ["badday_young_hypeblock_ab", "badday_young_absorb"],
      "note": "clone vs parent; winner-kill <=5%; log daily block-rate."},
+    {"name": "SOL ng_faststop enforce (exit memo #4)", "chain": "sol",
+     "arms": ["badday_ngfast_ab", "badday_young_absorb"],
+     "note": "grade enforced-FILL vs stamped-fire (the gap IS the economics; "
+             "kill if gap>=2.5pp or winner-kill>20%). 90s min-hold."},
     {"name": "SOL admission arms (volume unlock)", "chain": "sol",
      "arms": ["admission_x_liq", "admission_x_liqdemand", "admission_x_liq_sl1"],
      "note": "grade on NG/win/$/entry/buys-day vs the tape, not vs zero."},

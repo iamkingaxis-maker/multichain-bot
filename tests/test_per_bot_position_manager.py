@@ -668,7 +668,11 @@ def test_ng_faststop_exit_fires_when_enabled(monkeypatch):
     pm = PerBotPositionManager(_cfg(hard_stop_pct=-50.0, ng_faststop_exit_enabled=True))
     pm.open_position("D", 0.001, 20.0, entry_time=0.0)
     pm.tick("D", current_price=0.00101, now=10.0)            # +1% peak (never >=2)
-    decs = pm.tick("D", current_price=0.00096, now=20.0)     # -4% -> NG_FASTSTOP exit
+    # 90s MIN-HOLD (2026-07-20 exit-memo #4 enforce): under 90s the acting
+    # exit must NOT fire (sol_bail churn lesson) even with the gate met
+    decs = pm.tick("D", current_price=0.00096, now=20.0)     # -4% but 20s hold
+    assert not any(d.kind == "NG_FASTSTOP" for d in decs)
+    decs = pm.tick("D", current_price=0.00096, now=95.0)     # -4% past min-hold
     assert any(d.kind == "NG_FASTSTOP" for d in decs)
 
 

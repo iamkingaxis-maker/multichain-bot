@@ -1077,12 +1077,17 @@ class PerBotPositionManager:
         # acting on the -4 tick books ~-4.7 instead of -16.4. Winner-safe BY CONSTRUCTION
         # (peak<2 can't be a runner); EXIT-ONLY (no size cut). Precedes never_runner (whose
         # -6 floor is missed on the gap). ACTS only when ng_faststop_exit_enabled.
+        # 90s MIN-HOLD added 2026-07-20 (exit memo #4 enforce; the sol_bail
+        # churn lesson — an enforced fast exit without a hold floor turns
+        # into 5s churn and changes the population vs the shadow it was
+        # graded on).
         if (
             self.config.ng_faststop_exit_enabled
             and not p.tp1_hit
             and not _mhf_suppress
             and p.peak_pnl_pct < 2.0
             and pnl_pct <= -4.0
+            and (now - p.entry_time) >= 90.0
         ):
             decisions.append(ExitDecision(
                 token=token, kind="NG_FASTSTOP",
