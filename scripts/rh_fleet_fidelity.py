@@ -177,6 +177,10 @@ def main():
     payload = {b: round(fid, 2) for b, raw, fid, gap, flip in results}
     payload["_ts"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     payload["_dead_rate"] = round(len(dead_tokens) / max(1, len(tokens)), 3)
+    # V3 sensor feed (2026-07-21 camouflage finding): ship the dead-token set
+    # so the regime sensor can compute dead_commit_rate — the manufacturer-
+    # activity axis that flat-drift windows hide. Small (~30 tokens).
+    payload["_dead_tokens"] = sorted(dead_tokens)
     try:
         r = subprocess.run(["curl", "-s", "--max-time", "20", "-u", dash_auth,
             "-X", "POST", "-H", "Content-Type: application/json",

@@ -6064,6 +6064,27 @@ class WebDashboard:
                     if r.get("ev") == "buy" and str(r.get("ts", "")) >= cut:
                         rh_buys.append(r)
             out["chains"]["rh"] = _health(rh_buys, "price_eth", "token", "ts")
+            # MANUFACTURER-ACTIVITY AXIS (2026-07-21 camouflage finding, V3):
+            # the corpse factory runs in FLAT windows the drift sensor is
+            # blind to ($800/850 of dead-commit came from a drift-0.0 window).
+            # The direct read = share of recent buys that went into tokens the
+            # fidelity sweep has since marked DEAD, plus live distributor-sell
+            # stamps. High dead_commit = manufacturers operating NOW even when
+            # drift looks asleep. Shadow field; the V3 router will VETO on it.
+            try:
+                fid = self._rh_fidelity_read() or {}
+                deadset = set(fid.get("_dead_tokens") or [])
+                if deadset and rh_buys:
+                    into_dead = sum(1 for r in rh_buys
+                                    if r.get("token") in deadset)
+                    dist = sum(1 for r in rh_buys if r.get("dist_active") == 1)
+                    out["chains"]["rh"]["dead_commit_rate"] = round(
+                        100 * into_dead / len(rh_buys), 1)
+                    out["chains"]["rh"]["dist_active_n"] = dist
+                    out["chains"]["rh"]["manufacturer_active"] = bool(
+                        into_dead / len(rh_buys) > 0.05 or dist > 0)
+            except Exception:
+                pass
         except Exception as e:
             out["chains"]["rh"] = {"state": "UNKNOWN", "error": str(e)[:80]}
         # SOL: from the trade store (buys carry entry_price)
