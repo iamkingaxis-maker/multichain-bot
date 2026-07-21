@@ -125,6 +125,15 @@ DAILY_LOSS_STOP_USD = float(os.environ.get("RH_PAPER_DAILY_STOP", "-250"))
 # Rug-guard port (2026-07-10 session-1 autopsy: Halp -90% + TREAT -17% = rugs
 # that passed the unguarded v1 gates; the Solana probe's edge IS its guards):
 MIN_LIQ_USD = 30_000.0      # PARITY with the live probe (was 10k -> rug pond)
+# DEAD-SET ENTRY BLOCK (2026-07-21): known-unsellable tokens, published by
+# the 30-min fidelity refresh (which quotes every fleet token). Entries into
+# members are blocked fleet-wide with reason "dead_token" — equally across
+# every A/B arm, so paired verdicts survive. FAIL-OPEN: empty set or a set
+# older than 36h blocks nothing (a stale corpse list is its own illusion).
+DEAD_TOKENS: set = set()
+DEAD_TOKENS_TS: float = 0.0
+DEAD_TOKENS_MAX_AGE_S = 36 * 3600.0
+
 MIN_POOL_AGE_H = 1.0        # dev-armed launch window: no fresh-pool entries
 LP_DRAIN_WINDOW_S = 900.0   # liq-delta lookback (mirrors lp_delta_15m_pct)
 LP_DRAIN_ENTRY_PCT = -15.0  # recent drain >= 15% -> no entry (RH v1: no data
@@ -2643,6 +2652,10 @@ class PaperLane:
             vol_m5 = sum(float(r.get("volume_usd") or 0) for r in rows
                          if now - (r.get("_epoch") or 0) <= 300)
             cand_token = self._token_for(pool)  # dict lookups only (cheap)
+            # dead-set block (shared fact — applies to every arm equally)
+            dead_block = bool(
+                cand_token and cand_token in DEAD_TOKENS
+                and (now - DEAD_TOKENS_TS) <= DEAD_TOKENS_MAX_AGE_S)
             self.n_evals += 1
             # ── per-CONFIG thresholds against those shared facts ────────────
             entering = []
@@ -2658,6 +2671,8 @@ class PaperLane:
                 # per-racer aged-cohort verdicts (all default-off for the
                 # pre-existing scalp fleet)
                 extra = []
+                if dead_block:
+                    extra.append("dead_token")
                 if bot.pool_loss_lockout_n is not None:
                     _ll = [t for t in st.pool_loss_closes.get(pool, ())
                            if now - t <= 6 * 3600.0]
@@ -3571,6 +3586,20 @@ def _refresh_fleet_fidelity():
         t0 = time.time()
         from scripts import rh_fleet_fidelity as _fid
         _fid.main()
+        # DEAD-SET ENTRY BLOCK feed (2026-07-21 desk-review #1 action): the
+        # refresh just quoted every fleet token's sellability — publish the
+        # dead set so the ENTRY path can refuse to stake into known corpses.
+        # (The loss-lockout can't catch these: dead tokens book phantom WINS,
+        # so no losing close ever registers. $825 staked into known-dead in
+        # 7h on 07-21, one token re-bought 6x in 40min.)
+        try:
+            DEAD_TOKENS.clear()
+            DEAD_TOKENS.update(t for t, d in _fid._sell_cache.items() if d)
+            globals()["DEAD_TOKENS_TS"] = time.time()
+            print(f"[rh-paper] dead-set published: {len(DEAD_TOKENS)} tokens",
+                  flush=True)
+        except Exception:
+            pass
         print(f"[rh-paper] FIDELITY-REFRESH ok in {time.time() - t0:.0f}s",
               flush=True)
     except Exception as e:
