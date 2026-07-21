@@ -6161,26 +6161,38 @@ class WebDashboard:
             # SL1's PAIRED verdicts stand (relative, same-token) — this is an
             # ABSOLUTE screen. rh_phoenix is the only fidelity-surviving newer
             # bot (+$0.31 flat) but is sub-bar (drop-top-2 negative).
-            "rh": {},
+            # ROUTE REFILL (2026-07-21, V2 semantics — the INVERTED honest
+            # map): the young-band SICK-window cell logged green on EVERY
+            # sick-day observation 07-17..07-21 (fidelity dollars, 5 distinct
+            # days) -> first cell past the route bar. Seat = the FILTERED
+            # young variant (age>=1h corpse-block + SL1), never raw young.
+            # V1's HEALTHY=TRADE is refuted (healthy windows commit 90%+ of
+            # dead-token $); the arm condition is now SICK + bounce>=40
+            # (dips must be BOUNCING, not continuing — the V2 spec, manual
+            # section 4). Shadow-only: this drives the flip-sim/Gate A.
+            "rh": {"SICK": ["rh_dipall_young1h"]},
             "sol": {},
         }
         route = {}
         for chain, h in out["chains"].items():
             st_ = h.get("state")
             cands = (ROUTE_MAP.get(chain) or {}).get(st_) or []
-            if st_ == "HEALTHY" and cands:
+            bounce = h.get("dip_bounce_rate")
+            bounce_ok = isinstance(bounce, (int, float)) and bounce >= 40
+            if st_ == "SICK" and cands and bounce_ok:
                 route[chain] = {
                     "action": "TRADE", "families": cands,
                     "live_seat": "NOT_ARMED (no bot past the live bar yet; "
                                  "arm = human, via the safe-live checklist)",
-                    "reason": f"tape {st_} "
-                              f"({h.get('median_drift_pct')}% median drift)"}
+                    "reason": f"tape {st_} + dips bouncing "
+                              f"({bounce}% >= 40) — the honest map's paying "
+                              f"cell (young-S, 5 green sick-days)"}
             else:
                 route[chain] = {
                     "action": "STAND_DOWN", "families": [],
-                    "reason": f"tape {st_} — nothing was green in sick "
-                              f"windows (07-17 mine); volume in a sick tape "
-                              f"is volume that loses"}
+                    "reason": (f"tape {st_} bounce={bounce}% — V2 arms only "
+                               f"SICK windows with bouncing dips (healthy "
+                               f"windows = corpse-commitment, 9:1 measured)")}
         out["route"] = route
         out["route_note"] = ("recommend-only: mapping is PROVISIONAL "
                              "(in-sample 4d) until the out-of-sample re-mine "
