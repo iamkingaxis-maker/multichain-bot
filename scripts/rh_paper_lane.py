@@ -134,6 +134,19 @@ DEAD_TOKENS: set = set()
 DEAD_TOKENS_TS: float = 0.0
 DEAD_TOKENS_MAX_AGE_S = 36 * 3600.0
 
+# DISTRIBUTOR WATCH (2026-07-21 get-ahead doctrine, the ONE verified survivor):
+# an operator crew is live — 4 sell-only distributor wallets dumping $62k-$350k
+# on ~zero buys, refilled by bridge 0xf70da9 (funded through 07-20). Their
+# FIRST-SELL in a pool caught 93% of distribution events at 0s delay, walking
+# forward across eras — the only forward-valid, decision-time offense trigger.
+# SHADOW ONLY here: stamp dist_active on entries so the corpse/net-$ separation
+# can be graded (needs the entry<->tape join fix + n>=30 before any gate). The
+# 564-wallet address registry was REFUTED (burners rotate daily); ONLY these
+# persistent-core distributors are watched. Env override keeps rotation cheap.
+DISTRIBUTOR_WATCH = {a.lower() for a in os.environ.get(
+    "RH_DISTRIBUTOR_WATCH",
+    "0xcaf681,0x65050a,0x578980,0x243a17").split(",") if a.strip()}
+
 MIN_POOL_AGE_H = 1.0        # dev-armed launch window: no fresh-pool entries
 LP_DRAIN_WINDOW_S = 900.0   # liq-delta lookback (mirrors lp_delta_15m_pct)
 LP_DRAIN_ENTRY_PCT = -15.0  # recent drain >= 15% -> no entry (RH v1: no data
@@ -2425,6 +2438,26 @@ class PaperLane:
         except Exception:
             return None  # unknown age -> gate has no signal (fail-open)
 
+    def _distributor_active(self, pool: str) -> int:
+        """Get-ahead doctrine SHADOW (2026-07-21): 1 if any watched
+        distributor wallet has printed a SELL in this pool's tape (their
+        first-sell caught 93% of distribution at 0s delay). Prefix match
+        (the doctrine gave address prefixes; full addresses = the pending
+        funding-parent data job). Never gates — annotation for the n>=30
+        corpse/net-$ grade once the entry<->tape join is fixed."""
+        if not DISTRIBUTOR_WATCH:
+            return 0
+        try:
+            for r in self.tape.get(pool, []):
+                if r.get("kind") != "sell":
+                    continue
+                mk = str(r.get("maker") or "").lower()
+                if any(mk.startswith(p) for p in DISTRIBUTOR_WATCH):
+                    return 1
+        except Exception:
+            pass
+        return 0
+
     def _recycled_flow_flags(self, pool: str, now: float,
                              window_s: float = 600.0):
         """Entry memo #6 SHADOW stamp (never blocks): buy-side authenticity
@@ -2977,6 +3010,7 @@ class PaperLane:
                    # n>=30 across >=3 tape days, it becomes the demand
                    # gates' fix (34/36 live entries were flagged).
                    "flow_flags": self._recycled_flow_flags(pool, now),
+                   "dist_active": self._distributor_active(pool),
                    "lat_trigger_lag_s": trigger_lag,
                    "lat_quote_s": lat_quote,
                    "lat_quote_buy_s": lat_quote_buy,
