@@ -167,7 +167,11 @@ def grade(closes):
     met = {"n": n >= BAR["n"], "days": days >= BAR["days"],
            "tokens": toks >= BAR["tokens"], "dt2_pos": dt2 > 0}
     at_bar = met["n"] and met["days"] and met["tokens"]
+    per_day = {}
+    for c in closes:
+        per_day[c["day"]] = round(per_day.get(c["day"], 0.0) + c["usd"], 2)
     return {"n": n, "days": days, "tokens": toks,
+            "per_day": per_day,
             "fid_usd": round(tot, 2),
             "per_close": round(tot / n, 3) if n else None,
             "win_rate": round(wins / n, 3) if n else None,
@@ -206,6 +210,37 @@ def main():
                                       "note": exp["note"]})
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=1)
+    # DURABLE EVIDENCE (2026-07-21, the evidence-evaporation fix): the
+    # dashboard ledger caps ~5000 rows/bot, so raw day-level data ages out
+    # in ~2-3 days at fleet volume — no 5-day bar can ever be re-verified
+    # from the rolling window alone (the young-S route certification became
+    # unreproducible within hours). Append every run's per-arm PER-DAY
+    # aggregates to a permanent history file; bars count days from HERE.
+    # Keyed (bot, day): newest run's value for a day wins (days still
+    # inside the rolling window keep improving; aged-out days FREEZE).
+    hist_path = os.path.join("scratchpad", "_gradebook_history.jsonl")
+    try:
+        frozen = {}
+        if os.path.exists(hist_path):
+            for line in open(hist_path, encoding="utf-8"):
+                try:
+                    j = json.loads(line)
+                    frozen[(j["bot"], j["day"])] = j
+                except Exception:
+                    continue
+        for e in report["experiments"]:
+            for a in e["arms"]:
+                for d, usd in (a.get("per_day") or {}).items():
+                    frozen[(a["bot"], d)] = {
+                        "bot": a["bot"], "day": d, "fid_usd": usd,
+                        "run_ts": report["ts"],
+                        "dead_rebooked": report["dead_rebooked"]}
+        with open(hist_path, "w", encoding="utf-8") as f:
+            for k in sorted(frozen):
+                f.write(json.dumps(frozen[k]) + "\n")
+        print(f"-> {hist_path} ({len(frozen)} bot-days archived)")
+    except Exception as e:
+        print(f"!! history archive failed: {e}")
     print(f"\n-> {OUT}")
 
 
