@@ -139,25 +139,20 @@ def rh_bot_closes(bot, dead):
 def sol_bot_closes(trades, bot):
     """SOL closes from /api/trades?full=1 rows (phantom-scrubbed)."""
     out = []
-    buys = {}
     for t in trades:
         if t.get("bot_id") != bot:
             continue
-        if t.get("side") == "buy":
-            buys[t.get("address")] = t
-        elif t.get("side") == "sell" and isinstance(t.get("pnl_usd"),
-                                                    (int, float)):
-            b = buys.get(t.get("address")) or {}
-            bt, st_ = _ts(b.get("timestamp")), _ts(t.get("timestamp"))
-            hold = (st_ - bt) if (st_ and bt) else None
+        if t.get("type") == "sell" and isinstance(t.get("pnl"),
+                                                  (int, float)):
+            hold = t.get("hold_secs")
             pct = t.get("pnl_pct")
-            if t["pnl_usd"] > 0 and hold is not None and (
+            if t["pnl"] > 0 and isinstance(hold, (int, float)) and (
                     hold < 10.0 or (hold < 300.0
                                     and isinstance(pct, (int, float))
                                     and pct > 100.0)):
                 continue
-            out.append({"usd": t["pnl_usd"],
-                        "day": str(t.get("timestamp"))[:10],
+            out.append({"usd": t["pnl"],
+                        "day": str(t.get("time"))[:10],
                         "token": t.get("address")})
     return out
 
@@ -189,8 +184,9 @@ def main():
     dead = _dead_set()
     sol_trades = None
     if want_sol:
-        sol_trades = (_get(f"{BASE}/api/trades?full=1&limit=5000")
-                      .get("trades")) or []
+        raw = _get(f"{BASE}/api/trades?full=1&limit=5000")
+        sol_trades = (raw if isinstance(raw, list)
+                      else (raw or {}).get("trades")) or []
     report = {"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
               "dead_rebooked": dead is not None, "experiments": []}
     for exp in EXPERIMENTS:
