@@ -414,6 +414,12 @@ class LaneBot:
     # wait-for-lower-price rule — proximity-to-low gating tested
     # ANTI-predictive in the same verification.
     knife_skip: bool = False
+    # MANUFACTURER VETO (2026-07-21 flat-camouflage mine): skip entries while
+    # the window reads manufacturer-active (recent entries committing to
+    # corpses > 8%). Opt-in A/B arm; every entry is shadow-stamped mfr_active
+    # regardless, so the counterfactual is measurable fleet-wide before this
+    # gates anything. None/False = no behavior change.
+    mfr_veto: bool = False
     # POOL LOSS LOCKOUT (2026-07-20, the phoenix postmortem — FLEET-WIDE
     # default ON). Phoenix died of exposure inversion: 148 buys on 28 pools
     # (5.3/pool) because bleeding pools keep re-generating entry signals
@@ -1244,6 +1250,21 @@ ROSTER = (
             min_pool_age_h=1.0, knife_skip=True,
             sl1_pct=-6.0, sl1_sell_fraction=0.75,
             max_concurrent=2),
+    # ── MANUFACTURER-VETO A/B (2026-07-21 flat-camouflage mine: 82% of fleet
+    # bleed is FLAT-drift-window entries the drift sensor can't see; the
+    # per-bot slice showed removing them takes the fleet -$3,823 -> -$700).
+    # Byte-identical to rh_dipall_ctrl EXCEPT it skips entries while the
+    # window reads manufacturer-active (recent entries committing to corpses
+    # >8%). Paired vs rh_dipall_ctrl = the clean forward measure of the
+    # backward -$230->~$0 conversion (some of the backward number is the
+    # dead-rebook->flat mechanical confound; THIS arm settles it live).
+    # PRE-REGISTERED: n>=30 vetoed entries, net-$ vs ctrl + drop-top-2; the
+    # veto goes fleet-wide only if it beats ctrl at the bar.
+    LaneBot(bot_id="rh_mfrveto_ab",
+            dip_trigger_pct=-8.0, min_liq_usd=10_000.0,
+            min_pool_age_h=0.0, mfr_veto=True,
+            sl1_pct=-6.0, sl1_sell_fraction=0.75,
+            max_concurrent=2),
     # ── THE PROFESSIONAL-SHAPE SEAT (2026-07-19 judge-panel synthesis:
     # 3 Fable designers x 3 adversarial judges -> rh_pro_agedflush). The
     # concentrated seat: aged pools (>=24h, the honest band), deep flushes
@@ -1867,6 +1888,13 @@ class PaperLane:
         self.first_px = {}          # pool -> first quote px ever seen (arc
                                     # basis; persisted — see save_state)
         self.cum_vol = {}           # pool -> lifetime observed USD volume
+        # MANUFACTURER-ACTIVE read (2026-07-21 flat-camouflage mine: 82% of
+        # fleet bleed is FLAT-drift-window entries; the drift sensor is blind
+        # to manufacturers seeding corpses in calm windows). Rolling 4h list
+        # of (ts, token) for ALL fleet entries; _mfr_active_now checks what
+        # fraction have SINCE landed in the published dead set — a live read
+        # that the manufacturers are operating NOW, even at drift 0.
+        self._recent_entries = []
                                     # (proven-volume gate basis; persisted)
         self.session_anchor = {}    # pool -> True when session facts are
                                     # creation-anchored (seed backfill applied
@@ -2438,6 +2466,22 @@ class PaperLane:
         except Exception:
             return None  # unknown age -> gate has no signal (fail-open)
 
+    def _mfr_active_now(self, now: float) -> int:
+        """Manufacturer-active regime read (2026-07-21 flat-camouflage mine).
+        1 when the recent entry stream is committing to corpses at a rate
+        that says an operator is staging pumps in this window — the FLAT-
+        window leak the drift sensor cannot see. Reads the fraction of the
+        trailing 4h fleet entries whose token has SINCE been marked dead by
+        the sellability sweep. FAIL-OPEN: needs a fresh dead set (<36h) and
+        >=15 samples, else 0 (never blocks on thin/stale data)."""
+        if not (DEAD_TOKENS and (now - DEAD_TOKENS_TS) <= DEAD_TOKENS_MAX_AGE_S):
+            return 0
+        recent = [t for (ts_, t) in self._recent_entries if now - ts_ <= 14400]
+        if len(recent) < 15:
+            return 0
+        into_dead = sum(1 for t in recent if t in DEAD_TOKENS)
+        return 1 if (into_dead / len(recent)) > 0.08 else 0
+
     def _distributor_active(self, pool: str) -> int:
         """Get-ahead doctrine SHADOW (2026-07-21): 1 if any watched
         distributor wallet has printed a SELL in this pool's tape (their
@@ -2689,6 +2733,7 @@ class PaperLane:
             dead_block = bool(
                 cand_token and cand_token in DEAD_TOKENS
                 and (now - DEAD_TOKENS_TS) <= DEAD_TOKENS_MAX_AGE_S)
+            mfr_active = self._mfr_active_now(now)   # shared regime read
             self.n_evals += 1
             # ── per-CONFIG thresholds against those shared facts ────────────
             entering = []
@@ -2706,6 +2751,8 @@ class PaperLane:
                 extra = []
                 if dead_block:
                     extra.append("dead_token")
+                if bot.mfr_veto and mfr_active:
+                    extra.append("mfr_veto")
                 if bot.pool_loss_lockout_n is not None:
                     _ll = [t for t in st.pool_loss_closes.get(pool, ())
                            if now - t <= 6 * 3600.0]
@@ -2971,6 +3018,13 @@ class PaperLane:
             st.n_entries += 1
             st.day_buys += 1
             st.bites[pool] = st.bites.get(pool, 0) + 1
+            # feed the manufacturer-active read (capital-weighted: a pool the
+            # fleet piles into counts more, which is correct). Trim to 4h.
+            self._recent_entries.append((now, token))
+            if len(self._recent_entries) > 3000:
+                self._recent_entries = [
+                    (t, tk) for (t, tk) in self._recent_entries
+                    if now - t <= 14400]
             rec = {"ev": "buy", "ts": self._ledger_ts(now),
                    "bot_id": st.bot.bot_id, "pool": pool, "token": token,
                    "sym": w["sym"], "usd": size_usd, "price_eth": bot_px,
@@ -3011,6 +3065,7 @@ class PaperLane:
                    # gates' fix (34/36 live entries were flagged).
                    "flow_flags": self._recycled_flow_flags(pool, now),
                    "dist_active": self._distributor_active(pool),
+                   "mfr_active": self._mfr_active_now(now),
                    "lat_trigger_lag_s": trigger_lag,
                    "lat_quote_s": lat_quote,
                    "lat_quote_buy_s": lat_quote_buy,

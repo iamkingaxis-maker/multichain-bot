@@ -51,6 +51,11 @@ EXPERIMENTS = [
      "note": "reclaim>=2% above stop print + one bite ever. Same kills as v1 "
              "(fid<-$20 at n>=30, deaths eat bounces), fresh clock. v1 died "
              "-$122/n=57 of exposure inversion (postmortem in memory)."},
+    {"name": "RH manufacturer-veto A/B (flat-camouflage fix)", "chain": "rh",
+     "arms": ["rh_mfrveto_ab", "rh_dipall_ctrl"],
+     "note": "skip entries while window reads manufacturer-active (>8% recent "
+             "corpse-commit). Backward mine: -3823->-700 fleet fleet. Kill: no "
+             "net-\$ gain vs ctrl at n>=30 vetoed entries + drop-top-2."},
     {"name": "RH exit-memo A/Bs (#1 ladder, #2 bail-frac)", "chain": "rh",
      "arms": ["rh_bailfrac_ab", "rh_aged_hold",
               "rh_young_agedladder_ab", "rh_young_v1"],

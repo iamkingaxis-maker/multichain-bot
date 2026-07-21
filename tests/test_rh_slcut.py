@@ -161,7 +161,8 @@ def test_roster_sl1_bots_and_no_leak():
                                          "rh_dipall_knife",
                                          "rh_dipall_young1h",
                                          "rh_dipall_both",
-                                         "rh_pro_agedflush"}
+                                         "rh_pro_agedflush",
+                                         "rh_mfrveto_ab"}
     assert all(b.sl1_pct == -6.0 and b.sl1_sell_fraction == 0.75
                for b in slcut)
     assert all(b.sl1_pct is None for b in mod.ROSTER
