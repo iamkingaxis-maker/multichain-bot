@@ -51,6 +51,11 @@ EXPERIMENTS = [
      "note": "reclaim>=2% above stop print + one bite ever. Same kills as v1 "
              "(fid<-$20 at n>=30, deaths eat bounces), fresh clock. v1 died "
              "-$122/n=57 of exposure inversion (postmortem in memory)."},
+    {"name": "RH young-right-time seat (proven vol + strength)", "chain": "rh",
+     "arms": ["rh_young_proven"],
+     "note": "young timing mine: thin<2eth -6.5%/25%win vs proven>10eth "
+             "+1.8%/48%; DIP 18%win vs STRENGTH 45%. Buy young STRENGTH on "
+             "proven pools. Career candidate at n>=30/5d/20tok+drop-top-2."},
     {"name": "RH established-dip seat (buy the RIGHT dips)", "chain": "rh",
      "arms": ["rh_established_dip"],
      "note": "24h+ pools, liq>=30k. Good-dip mine: 24h+ = +$0.46/e GREEN "

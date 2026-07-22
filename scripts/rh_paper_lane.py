@@ -1285,6 +1285,30 @@ ROSTER = (
             trail_pp=10.0, hard_stop_pct=-15.0,
             sl1_pct=-6.0, sl1_sell_fraction=0.75,
             max_concurrent=3),
+    # ── THE YOUNG-RIGHT-TIME SEAT (2026-07-22, AxiS "we were buying at the
+    # wrong times on the younger ones"). The young-timing mine (26,348 clean
+    # entries, ret20 forward, rug-stripped, outlier-capped) was decisive on
+    # TWO independent axes:
+    #   PROVEN VOLUME: thin<2eth med -6.5%/25%win | proven>10eth med +1.8%/48%
+    #   ENTRY MOMENT:  young DIP/pullback 18%win | young STRENGTH(arc>0) 45%
+    # We were buying young DIPS on THIN pools — the two worst cells stacked.
+    # The right time = a young pool with PROVEN cumulative volume, bought on
+    # STRENGTH not weakness. launch_strength entry mode + proven-volume floor
+    # (>10eth ~= $20k cum) + session anchor (cum_vol only valid creation-
+    # anchored). mfr_veto on. Own group; SL1. Career candidate at the bar.
+    LaneBot(bot_id="rh_young_proven",
+            entry_mode="launch_strength",
+            min_pool_age_h=0.0, max_pool_age_h=6.0,
+            launch_min_inflow_usd=150.0,
+            min_session_vol_usd=20_000.0,
+            require_session_anchor=True,
+            min_liq_usd=10_000.0,
+            mfr_veto=True,
+            tp1_pct=6.0, tp1_sell_fraction=0.60,
+            tp2_pct=14.0, tp2_sell_fraction=0.25,
+            trail_pp=6.0, hard_stop_pct=-10.0,
+            sl1_pct=-6.0, sl1_sell_fraction=0.75,
+            max_concurrent=3),
     # ── THE PROFESSIONAL-SHAPE SEAT (2026-07-19 judge-panel synthesis:
     # 3 Fable designers x 3 adversarial judges -> rh_pro_agedflush). The
     # concentrated seat: aged pools (>=24h, the honest band), deep flushes
