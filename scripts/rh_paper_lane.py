@@ -1265,6 +1265,26 @@ ROSTER = (
             min_pool_age_h=0.0, mfr_veto=True,
             sl1_pct=-6.0, sl1_sell_fraction=0.75,
             max_concurrent=2),
+    # ── THE ESTABLISHED-DIP SEAT (2026-07-22, AxiS "buy THOSE dips"). The
+    # good-dip population mine (liq>=30k, fidelity-honest) was unambiguous:
+    #   0-1h  -$13.0/e | 1-6h -$5.6/e | 6-24h -$0.29/e | 24h+ +$0.46/e GREEN.
+    # We were drowning the green 24h+ population (~19/day, 21 tokens) in
+    # 362/day of 1-6h churn. This seat buys ONLY established-pool dips: age
+    # >=24h + real liquidity >=30k, normal dip trigger (NOT the pro seat's
+    # deep-flush requirement that starved it to 1/day), SL1, mfr_veto on
+    # (belt+braces). Own group = paired vs the fleet. PRE-REGISTERED: the
+    # career-mode go-live candidate if it holds green at n>=30/5d/20tok +
+    # drop-top-2. This is the "buy the dips winners actually buy" seat.
+    LaneBot(bot_id="rh_established_dip",
+            dip_trigger_pct=-8.0,
+            min_pool_age_h=24.0,
+            min_liq_usd=30_000.0,
+            mfr_veto=True,
+            tp1_pct=6.0, tp1_sell_fraction=0.50,
+            tp2_pct=16.0, tp2_sell_fraction=0.30,
+            trail_pp=10.0, hard_stop_pct=-15.0,
+            sl1_pct=-6.0, sl1_sell_fraction=0.75,
+            max_concurrent=3),
     # ── THE PROFESSIONAL-SHAPE SEAT (2026-07-19 judge-panel synthesis:
     # 3 Fable designers x 3 adversarial judges -> rh_pro_agedflush). The
     # concentrated seat: aged pools (>=24h, the honest band), deep flushes

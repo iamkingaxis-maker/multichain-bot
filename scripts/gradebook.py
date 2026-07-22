@@ -51,6 +51,11 @@ EXPERIMENTS = [
      "note": "reclaim>=2% above stop print + one bite ever. Same kills as v1 "
              "(fid<-$20 at n>=30, deaths eat bounces), fresh clock. v1 died "
              "-$122/n=57 of exposure inversion (postmortem in memory)."},
+    {"name": "RH established-dip seat (buy the RIGHT dips)", "chain": "rh",
+     "arms": ["rh_established_dip"],
+     "note": "24h+ pools, liq>=30k. Good-dip mine: 24h+ = +$0.46/e GREEN "
+             "(~19/day) vs 1-6h -$5.6/e. Career go-live candidate if holds "
+             "n>=30/5d/20tok + drop-top-2."},
     {"name": "RH manufacturer-veto A/B (flat-camouflage fix)", "chain": "rh",
      "arms": ["rh_mfrveto_ab", "rh_dipall_ctrl"],
      "note": "skip entries while window reads manufacturer-active (>8% recent "
