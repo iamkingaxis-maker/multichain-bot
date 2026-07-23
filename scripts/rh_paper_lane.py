@@ -493,6 +493,10 @@ class LaneBot:
     # exit memo #2 (2026-07-20): PRE_STOP_BAIL fraction (1.0 = full close,
     # the fleet default; the A/B arm banks 0.75 and lets the tail ride).
     pre_stop_bail_sell_fraction: float = 1.0
+    # LET-RUN mode (2026-07-23): disable the scalper early-bails (pre_stop_bail
+    # -3%, slow_bleed -8%/60min) so a position rides to a runner or the wide
+    # hard stop — the architecture the mfe test validated. Default off.
+    let_run: bool = False
     max_buys_per_day: Optional[int] = None      # UTC-day entry cap; None=off
 
     def bot_config(self) -> BotConfig:
@@ -501,6 +505,16 @@ class LaneBot:
             kw["trail_pp"] = self.trail_pp
         if self.pre_stop_bail_sell_fraction != 1.0:
             kw["pre_stop_bail_sell_fraction"] = self.pre_stop_bail_sell_fraction
+        if self.let_run:
+            # LET-RUN (2026-07-23): neutralize the SCALPER early-bails that
+            # otherwise cut a position at -3% (pre_stop_bail) or -8%/60min
+            # (slow_bleed) BEFORE it can run OR reach the wide stop. Day-1
+            # diagnostic: pre_stop_bail was the #1 exit on the letrun seats,
+            # so they never actually let anything run — the mfe test that
+            # showed +5-10% used NO early bail. Only the wide hard stop +
+            # LP_DRAIN (real rug protection) remain on the downside.
+            kw["pre_stop_bail_pnl_pct"] = -100.0
+            kw["slow_bleed_pnl_threshold"] = -100.0
         return BotConfig(
             bot_id=self.bot_id, display_name=self.bot_id,
             tp1_pct=self.tp1_pct, tp1_sell_fraction=self.tp1_sell_fraction,
@@ -1273,7 +1287,7 @@ ROSTER = (
             dip_trigger_pct=-8.0, min_liq_usd=10_000.0, min_pool_age_h=0.0,
             tp1_pct=30.0, tp1_sell_fraction=0.25,
             tp2_pct=100.0, tp2_sell_fraction=0.25,
-            trail_pp=35.0, hard_stop_pct=-30.0,
+            trail_pp=35.0, hard_stop_pct=-30.0, let_run=True,
             max_concurrent=3),
     # rh_letrun_runner (2026-07-23, AxiS: "buy the correct tokens this works
     # on"). Same LET-RUN exit, but the ENTRY now SELECTS for runner potential.
@@ -1289,7 +1303,7 @@ ROSTER = (
             min_pool_age_h=0.0, max_pool_age_h=6.0,
             tp1_pct=30.0, tp1_sell_fraction=0.25,
             tp2_pct=100.0, tp2_sell_fraction=0.25,
-            trail_pp=35.0, hard_stop_pct=-30.0,
+            trail_pp=35.0, hard_stop_pct=-30.0, let_run=True,
             max_concurrent=3),
     # ── THE PROFESSIONAL-SHAPE SEAT (2026-07-19 judge-panel synthesis:
     # 3 Fable designers x 3 adversarial judges -> rh_pro_agedflush). The
