@@ -38,6 +38,13 @@ EXPERIMENTS = [
               "rh_dipall_young1h", "rh_dipall_both"],
      "note": "knife: kept-beats-skipped >=70% of days; kept lane MAY stay "
              "mildly red (pre-registered). Measure marginal value via arms."},
+    {"name": "RH LET-WINNERS-RUN vs scalp (the power-law test)", "chain": "rh",
+     "arms": ["rh_letrun", "rh_dipall_ctrl"],
+     "note": "SAME entry, let-run exit (wide trail, no SL1) vs scalp. Thesis: "
+             "memecoins are a lottery, scalping decapitates winners. mfe test "
+             "scalp -1.92% vs let-run +5-10%. Report WITH-tail AND ex-top-2; "
+             "kill only if with-tail loses to scalp at n>=30. Open Q: is the "
+             "tail REALIZABLE or spike-illusion? Fidelity-honest $ decides."},
     {"name": "RH professional seat (panel synthesis)", "chain": "rh",
      "arms": ["rh_pro_agedflush"],
      "note": "kills: fid<=-$40 wk1 / 4 red days / wr<40%@n>=25 / entries-day "

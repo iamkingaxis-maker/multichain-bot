@@ -1250,6 +1250,31 @@ ROSTER = (
             min_pool_age_h=1.0, knife_skip=True,
             sl1_pct=-6.0, sl1_sell_fraction=0.75,
             max_concurrent=2),
+    # ── LET-WINNERS-RUN A/B (2026-07-23, AxiS: "you don't understand how to
+    # trade memecoins" — and the data agreed). Memecoins are a POWER-LAW /
+    # lottery: money is in the rare 10-100x, winners pay for the losers. Our
+    # whole fleet SCALPS (tp1 +6, cut losers) = decapitates the winners. The
+    # mfe test on 64k replay entries, fidelity-honest (dead=-100, phantom
+    # peaks capped, only sellable tokens capture their peak): scalp_sl1 mean
+    # -1.92% vs LET-RUN (capture ~40-50% of peak, -25/-30 stop) +5.6 to
+    # +10.1%. SAME entries, sign flips. THIS is the untested architecture.
+    # rh_letrun = byte-identical ENTRY to rh_dipall_ctrl (dip -8, liq 10k,
+    # any age) but LET-RUN exit: small de-risk (bank 0.25 at +30), bank 0.25
+    # at 2x, the remaining HALF rides a WIDE 35pp trail to whatever multiple;
+    # wide -30 stop (accept big single losses, winners pay); NO SL1 (SL1 is a
+    # scalper cut that kills runners). PAIRED vs rh_dipall_ctrl = the clean
+    # test. OPEN QUESTION the grade must answer: is the fat tail REALIZABLE
+    # or an unsellable spike-illusion? Fidelity-honest realized $ decides.
+    # PRE-REGISTERED: n>=30/5d/20tok, net-$ vs dipall_ctrl, drop-top-2 — but
+    # NOTE for THIS seat drop-top-2 may legitimately go negative (the whole
+    # thesis is the tail pays), so ALSO report ex-top-2 AND with-tail side by
+    # side; kill only if WITH-tail loses to scalp at n>=30.
+    LaneBot(bot_id="rh_letrun",
+            dip_trigger_pct=-8.0, min_liq_usd=10_000.0, min_pool_age_h=0.0,
+            tp1_pct=30.0, tp1_sell_fraction=0.25,
+            tp2_pct=100.0, tp2_sell_fraction=0.25,
+            trail_pp=35.0, hard_stop_pct=-30.0,
+            max_concurrent=3),
     # ── THE PROFESSIONAL-SHAPE SEAT (2026-07-19 judge-panel synthesis:
     # 3 Fable designers x 3 adversarial judges -> rh_pro_agedflush). The
     # concentrated seat: aged pools (>=24h, the honest band), deep flushes
