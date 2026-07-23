@@ -39,7 +39,7 @@ EXPERIMENTS = [
      "note": "knife: kept-beats-skipped >=70% of days; kept lane MAY stay "
              "mildly red (pre-registered). Measure marginal value via arms."},
     {"name": "RH LET-WINNERS-RUN vs scalp (the power-law test)", "chain": "rh",
-     "arms": ["rh_letrun", "rh_dipall_ctrl"],
+     "arms": ["rh_letrun", "rh_letrun_runner", "rh_dipall_ctrl"],
      "note": "SAME entry, let-run exit (wide trail, no SL1) vs scalp. Thesis: "
              "memecoins are a lottery, scalping decapitates winners. mfe test "
              "scalp -1.92% vs let-run +5-10%. Report WITH-tail AND ex-top-2; "

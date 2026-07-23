@@ -1275,6 +1275,22 @@ ROSTER = (
             tp2_pct=100.0, tp2_sell_fraction=0.25,
             trail_pp=35.0, hard_stop_pct=-30.0,
             max_concurrent=3),
+    # rh_letrun_runner (2026-07-23, AxiS: "buy the correct tokens this works
+    # on"). Same LET-RUN exit, but the ENTRY now SELECTS for runner potential.
+    # The runner-mine (target = big SELLABLE peak >=50%, base 19.6%) — the
+    # EXACT INVERSE of the scalper mine: runners live in YOUNG/fresh tokens
+    # (<1h 35.4%, 24h+ only 10.8%) + deeper flushes (<-25 = 28.8%) + moderate
+    # activity. So: young (<=6h, weighted fresh) + deeper dip. This tests the
+    # FULL thesis (runner ENTRY + let-run EXIT) vs rh_letrun (broad entry, so
+    # entry-selection value is isolable) vs rh_dipall_ctrl (scalp control).
+    # Same open realizability question — fidelity-honest realized $ decides.
+    LaneBot(bot_id="rh_letrun_runner",
+            dip_trigger_pct=-12.0, min_liq_usd=15_000.0,
+            min_pool_age_h=0.0, max_pool_age_h=6.0,
+            tp1_pct=30.0, tp1_sell_fraction=0.25,
+            tp2_pct=100.0, tp2_sell_fraction=0.25,
+            trail_pp=35.0, hard_stop_pct=-30.0,
+            max_concurrent=3),
     # ── THE PROFESSIONAL-SHAPE SEAT (2026-07-19 judge-panel synthesis:
     # 3 Fable designers x 3 adversarial judges -> rh_pro_agedflush). The
     # concentrated seat: aged pools (>=24h, the honest band), deep flushes
