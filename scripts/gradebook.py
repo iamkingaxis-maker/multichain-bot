@@ -51,21 +51,6 @@ EXPERIMENTS = [
      "note": "reclaim>=2% above stop print + one bite ever. Same kills as v1 "
              "(fid<-$20 at n>=30, deaths eat bounces), fresh clock. v1 died "
              "-$122/n=57 of exposure inversion (postmortem in memory)."},
-    {"name": "RH young-right-time seat (proven vol + strength)", "chain": "rh",
-     "arms": ["rh_young_proven"],
-     "note": "young timing mine: thin<2eth -6.5%/25%win vs proven>10eth "
-             "+1.8%/48%; DIP 18%win vs STRENGTH 45%. Buy young STRENGTH on "
-             "proven pools. Career candidate at n>=30/5d/20tok+drop-top-2."},
-    {"name": "RH established-dip seat (buy the RIGHT dips)", "chain": "rh",
-     "arms": ["rh_established_dip"],
-     "note": "24h+ pools, liq>=30k. Good-dip mine: 24h+ = +$0.46/e GREEN "
-             "(~19/day) vs 1-6h -$5.6/e. Career go-live candidate if holds "
-             "n>=30/5d/20tok + drop-top-2."},
-    {"name": "RH manufacturer-veto A/B (flat-camouflage fix)", "chain": "rh",
-     "arms": ["rh_mfrveto_ab", "rh_dipall_ctrl"],
-     "note": "skip entries while window reads manufacturer-active (>8% recent "
-             "corpse-commit). Backward mine: -3823->-700 fleet fleet. Kill: no "
-             "net-\$ gain vs ctrl at n>=30 vetoed entries + drop-top-2."},
     {"name": "RH exit-memo A/Bs (#1 ladder, #2 bail-frac)", "chain": "rh",
      "arms": ["rh_bailfrac_ab", "rh_aged_hold",
               "rh_young_agedladder_ab", "rh_young_v1"],

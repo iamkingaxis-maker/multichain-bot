@@ -314,8 +314,7 @@ class TestFleetEntryRouting:
                            "rh_stable_ageddeep", "rh_slcut_ageddeep",
                            "rh_dipall_ctrl", "rh_dipall_knife",
                            "rh_dipall_young1h", "rh_dipall_both",
-                           "rh_bailfrac_ab", "rh_young_agedladder_ab",
-                           "rh_mfrveto_ab", "rh_established_dip"}
+                           "rh_bailfrac_ab", "rh_young_agedladder_ab"}
         assert "no_dip" in lane.state["rh_deep_only"].block_hist
         assert "no_dip" in lane.state["rh_deep_consolidated"].block_hist
         assert "no_demand_turn" in lane.state["rh_demand_heavy"].block_hist
@@ -383,11 +382,11 @@ class TestFleetEntryRouting:
         # ALSO passes young1h+both -> all 4 enter (no exclusion_group) = 15
         # + the 07-20 exit-memo pair (bailfrac aged-clone, agedladder
         # young-clone; own/no groups) = 17
-        assert len(buys) == 19
+        assert len(buys) == 17
         assert all(r.get("bot_id") for r in buys)
         # dashboard ingest de-dups on (ts, ev, pool): keys must be distinct
         keys = {(r["ts"], r["ev"], r["pool"]) for r in buys}
-        assert len(keys) == 19
+        assert len(keys) == 17
 
     def test_launch_scalp_enters_on_strength_not_dip(self, tmp_path,
                                                      monkeypatch):
