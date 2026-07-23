@@ -3647,6 +3647,55 @@ def _upload_ledger():
               f"{str(e)[:140]}", flush=True)
 
 
+def _upload_maker_tape(lane, since_ts):
+    """Ship the lane's live maker tape to the dashboard (2026-07-23 pipe fix).
+    The manufacturer/distributor get-ahead thread was UNTESTABLE because the
+    disk maker-collector went dark 07-18 (per-session, no 24/7 machine) and
+    self.tape lives only in memory. This flushes every maker-bearing tape row
+    newer than since_ts to /api/rh-tape/ingest, so the analysis runs on
+    CONTINUOUS data riding the always-on Railway lane. Returns the new
+    high-water ts. FAIL-OPEN: never touches trading."""
+    try:
+        import urllib.request as _u
+        rows = []
+        newest = since_ts
+        for pool, buf in list(lane.tape.items()):
+            for r in buf:
+                ep = r.get("_epoch")
+                mk = r.get("maker")
+                if ep is None or not mk or ep <= since_ts:
+                    continue
+                rows.append({"pool": pool, "kind": r.get("kind"),
+                             "maker": mk, "volume_usd": r.get("volume_usd"),
+                             "ts": r.get("ts") or iso_utc(ep)})
+                if ep > newest:
+                    newest = ep
+        if not rows:
+            return newest
+        auth = os.environ.get(
+            "DASH_AUTH", "jcole:pMIwPSmRmoPfteWViuGgjaTdnx5JfO-g-e6-_zjdlmo")
+        base = os.environ.get(
+            "RH_DASH_BASE",
+            "https://gracious-inspiration-production.up.railway.app")
+        # chunk to stay under the body cap (the 07-18 ledger-blackout lesson)
+        for i in range(0, len(rows), 2000):
+            chunk = rows[i:i + 2000]
+            data = json.dumps({"rows": chunk}).encode()
+            req = _u.Request(f"{base}/api/rh-tape/ingest", data=data,
+                             method="POST",
+                             headers={"Content-Type": "application/json"})
+            import base64 as _b64
+            req.add_header("Authorization", "Basic " +
+                           _b64.b64encode(auth.encode()).decode())
+            _u.urlopen(req, timeout=20).read()
+        print(f"[rh-paper] MAKER-TAPE-UPLOAD ok: {len(rows)} rows", flush=True)
+        return newest
+    except Exception as e:
+        print(f"[rh-paper] MAKER-TAPE-UPLOAD failed: {type(e).__name__}: "
+              f"{str(e)[:120]}", flush=True)
+        return since_ts
+
+
 def _refresh_fleet_fidelity():
     """Re-run the fleet FIDELITY correction and push it to the dashboard so the
     displayed 'real P&L' is honest instead of frozen at the last hand-run.
@@ -3692,6 +3741,9 @@ async def orchestrate(fh: Firehose, lane: PaperLane, max_minutes: float):
     last_wt = 0.0    # wallet-truth refresh clock (fires immediately, then ~5min)
     last_fid = 0.0   # fleet-fidelity refresh clock (fires immediately, then ~30min)
     last_up = 0.0    # ledger upload clock (fires immediately, then ~2min)
+    last_tape = 0.0  # maker-tape upload clock (~5min)
+    tape_hwm = time.time()   # only ship rows newer than lane start
+    TAPE_UPLOAD_S = float(os.environ.get("RH_TAPE_UPLOAD_S", "300"))
     try:
         while time.time() < t_end and not ws_task.done():
             last_scanned = await asyncio.to_thread(fh.maintenance, last_scanned)
@@ -3718,6 +3770,13 @@ async def orchestrate(fh: Firehose, lane: PaperLane, max_minutes: float):
                     time.time() - last_fid > FIDELITY_REFRESH_S:
                 last_fid = time.time()
                 await asyncio.to_thread(_refresh_fleet_fidelity)
+            # maker-tape -> dashboard (2026-07-23 pipe fix): continuous
+            # maker-level record so the distributor/manufacturer get-ahead
+            # thread is testable on fresh data. Off the event loop, fail-open.
+            if TAPE_UPLOAD_S > 0 and time.time() - last_tape > TAPE_UPLOAD_S:
+                last_tape = time.time()
+                tape_hwm = await asyncio.to_thread(
+                    _upload_maker_tape, lane, tape_hwm)
             await asyncio.sleep(MAINT_SECS)
     finally:
         lane.stop.set()

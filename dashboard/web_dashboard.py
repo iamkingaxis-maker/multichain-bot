@@ -2195,6 +2195,13 @@ class WebDashboard:
         self.app.router.add_get("/api/regime/history",        self._handle_api_regime_history)
         self.app.router.add_post("/api/rh-paper/ingest",      self._handle_api_rh_paper_ingest)
         self.app.router.add_post("/api/rh-fidelity/ingest",   self._handle_api_rh_fidelity_ingest)
+        # MAKER-TAPE pipe (2026-07-23): the always-on lane ships its live
+        # maker-level tape here so the manufacturer/distributor analysis runs
+        # on CONTINUOUS data (the disk collector went dark 07-18; this rides
+        # the Railway lane = no local 24/7 machine). Fixes the get-ahead
+        # dead-pipe: dist_active was untestable with no fresh maker tape.
+        self.app.router.add_post("/api/rh-tape/ingest",       self._handle_api_rh_tape_ingest)
+        self.app.router.add_get("/api/rh-tape",               self._handle_api_rh_tape)
         # 2026-07-13: RH hot-wallet on-chain truth (native ETH + WETH, delta vs
         # baseline) — the Solana /api/wallet-truth analog for the RH chain. The
         # paper lane reads the balance KEYLESS via RH_WALLET_ADDRESS on its
@@ -6262,6 +6269,77 @@ class WebDashboard:
             pass
         return web.json_response({"n": len(rows), "snapshots": rows},
                                  headers=cors)
+
+    def _rh_maker_tape_path(self) -> str:
+        """bot_state/rh_maker_tape.jsonl — continuous maker-level tape shipped
+        by the always-on lane (2026-07-23 pipe fix). Rolling-capped."""
+        return os.path.join(os.path.dirname(self._rh_paper_ledger_path()),
+                            "rh_maker_tape.jsonl")
+
+    async def _handle_api_rh_tape_ingest(self, request):
+        """POST /api/rh-tape/ingest — append maker-tape rows from the lane.
+        Body: {"rows": [{pool, kind, maker, volume_usd, ts}, ...]}. Appends
+        and rolls the file to the last MAKER_TAPE_CAP rows (in-place rewrite
+        past the cap). Auth'd by the app-wide write middleware. FAIL-OPEN."""
+        MAKER_TAPE_CAP = 200_000
+        try:
+            body = await request.json()
+        except Exception:
+            return web.json_response({"ok": False, "error": "bad JSON"},
+                                     status=400)
+        rows = (body or {}).get("rows") if isinstance(body, dict) else None
+        if not isinstance(rows, list):
+            return web.json_response({"ok": False, "error": "rows[] expected"},
+                                     status=400)
+        path = self._rh_maker_tape_path()
+
+        def _write():
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "a", encoding="utf-8") as f:
+                for r in rows:
+                    if isinstance(r, dict):
+                        f.write(json.dumps(r) + "\n")
+            # roll if oversized (cheap line-count check via size heuristic)
+            try:
+                if os.path.getsize(path) > MAKER_TAPE_CAP * 130:
+                    with open(path, encoding="utf-8") as f:
+                        keep = f.readlines()[-MAKER_TAPE_CAP:]
+                    tmp = path + ".tmp"
+                    with open(tmp, "w", encoding="utf-8") as f:
+                        f.writelines(keep)
+                    os.replace(tmp, path)
+            except OSError:
+                pass
+        try:
+            await asyncio.to_thread(_write)
+        except Exception as e:
+            return web.json_response({"ok": False, "error": str(e)[:200]},
+                                     status=500)
+        return web.json_response({"ok": True, "n": len(rows)})
+
+    async def _handle_api_rh_tape(self, request):
+        """GET /api/rh-tape?n=50000 — tail the maker tape for analysis."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        try:
+            n = min(int(request.query.get("n", "50000")), 200_000)
+        except (TypeError, ValueError):
+            n = 50_000
+        path = self._rh_maker_tape_path()
+        rows = []
+        try:
+            def _read():
+                with open(path, encoding="utf-8") as f:
+                    return f.readlines()[-n:]
+            for line in await asyncio.to_thread(_read):
+                line = line.strip()
+                if line:
+                    try:
+                        rows.append(json.loads(line))
+                    except ValueError:
+                        pass
+        except OSError:
+            pass
+        return web.json_response({"n": len(rows), "rows": rows}, headers=cors)
 
     def _rh_fidelity_path(self) -> str:
         """bot_state/rh_fidelity.json — fidelity-corrected per-bot P&L map pushed
