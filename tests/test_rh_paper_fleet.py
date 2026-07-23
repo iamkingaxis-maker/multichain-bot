@@ -315,7 +315,7 @@ class TestFleetEntryRouting:
                            "rh_dipall_ctrl", "rh_dipall_knife",
                            "rh_dipall_young1h", "rh_dipall_both",
                            "rh_bailfrac_ab", "rh_young_agedladder_ab",
-                           "rh_letrun", "rh_letrun_runner"}
+                           "rh_letrun", "rh_letrun_sl1"}
         assert "no_dip" in lane.state["rh_deep_only"].block_hist
         assert "no_dip" in lane.state["rh_deep_consolidated"].block_hist
         assert "no_demand_turn" in lane.state["rh_demand_heavy"].block_hist

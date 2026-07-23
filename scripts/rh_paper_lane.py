@@ -1289,21 +1289,24 @@ ROSTER = (
             tp2_pct=100.0, tp2_sell_fraction=0.25,
             trail_pp=35.0, hard_stop_pct=-30.0, let_run=True,
             max_concurrent=3),
-    # rh_letrun_runner (2026-07-23, AxiS: "buy the correct tokens this works
-    # on"). Same LET-RUN exit, but the ENTRY now SELECTS for runner potential.
-    # The runner-mine (target = big SELLABLE peak >=50%, base 19.6%) — the
-    # EXACT INVERSE of the scalper mine: runners live in YOUNG/fresh tokens
-    # (<1h 35.4%, 24h+ only 10.8%) + deeper flushes (<-25 = 28.8%) + moderate
-    # activity. So: young (<=6h, weighted fresh) + deeper dip. This tests the
-    # FULL thesis (runner ENTRY + let-run EXIT) vs rh_letrun (broad entry, so
-    # entry-selection value is isolable) vs rh_dipall_ctrl (scalp control).
-    # Same open realizability question — fidelity-honest realized $ decides.
-    LaneBot(bot_id="rh_letrun_runner",
-            dip_trigger_pct=-12.0, min_liq_usd=15_000.0,
-            min_pool_age_h=0.0, max_pool_age_h=6.0,
+    # rh_letrun_sl1 (2026-07-23, path-to-green memo reconciliation). The
+    # pure let-run failed NOT because winners don't run (TP2 catches +106%
+    # live — the exit insight is REAL) but because uncapping the LOSER side
+    # let losers bleed to -49% hard stops, eating the capture. The winning
+    # shape is ASYMMETRIC: let winners run (uncapped upside) + CUT LOSERS
+    # TIGHT. This arm = let-run winner side (bails off, wide trail, bank at
+    # 2x) + SL1 loss-cut (bank 0.75 @ -6% pre-TP1). 3-way test isolates the
+    # LOSS treatment: dipall_ctrl (scalp: caps both) | rh_letrun (pure: uncaps
+    # both) | rh_letrun_sl1 (asymmetric: uncaps winners, cuts losers). Matches
+    # the standing RH finding (losses close full-size at 2x win size). Runner-
+    # ENTRY was refuted independently (replay -11.9% honest, worst live bot) —
+    # dropped; entry stays broad so the loss-treatment is the only variable.
+    LaneBot(bot_id="rh_letrun_sl1",
+            dip_trigger_pct=-8.0, min_liq_usd=10_000.0, min_pool_age_h=0.0,
             tp1_pct=30.0, tp1_sell_fraction=0.25,
             tp2_pct=100.0, tp2_sell_fraction=0.25,
             trail_pp=35.0, hard_stop_pct=-30.0, let_run=True,
+            sl1_pct=-6.0, sl1_sell_fraction=0.75,
             max_concurrent=3),
     # ── THE PROFESSIONAL-SHAPE SEAT (2026-07-19 judge-panel synthesis:
     # 3 Fable designers x 3 adversarial judges -> rh_pro_agedflush). The
@@ -3541,6 +3544,14 @@ class PaperLane:
                     "usd_out": round(usd_out, 2),
                     "pnl_usd": round(pnl_usd, 2),
                     "pnl_pct": round(pnl_pct, 2), "fully": fully,
+                    # CAPTURE MEASUREMENT (2026-07-23, path-to-green gate 0):
+                    # the peak this position reached, so realized/peak on
+                    # TP2+trail exits directly measures how much of a runner
+                    # we actually harvest (the load-bearing unknown). Was
+                    # emitting on 0/235 sells; without it the capture gate
+                    # can't run.
+                    "peak_pnl_pct": round(getattr(res, "peak_pnl_pct", 0.0)
+                                          or 0.0, 2),
                     "runner_score": runner_sc,
                     "runner_reasons": runner_rs,
                     "daily_pnl_usd": round(st.daily_pnl_usd, 2)}
