@@ -315,7 +315,12 @@ class TestFleetEntryRouting:
                            "rh_dipall_ctrl", "rh_dipall_knife",
                            "rh_dipall_young1h", "rh_dipall_both",
                            "rh_bailfrac_ab", "rh_young_agedladder_ab",
-                           "rh_letrun", "rh_letrun_sl1"}
+                           "rh_letrun", "rh_letrun_sl1",
+                           # rh_subgate (2026-07-24 subtractive gate): both gate
+                           # arms FAIL OPEN here — age unknown (band None, not
+                           # "young") and no comp buy_share snapshot — so it
+                           # enters as a rh_dipall_ctrl clone (own bot id).
+                           "rh_subgate"}
         assert "no_dip" in lane.state["rh_deep_only"].block_hist
         assert "no_dip" in lane.state["rh_deep_consolidated"].block_hist
         assert "no_demand_turn" in lane.state["rh_demand_heavy"].block_hist
@@ -382,12 +387,52 @@ class TestFleetEntryRouting:
         # (aged 5h in the fixture) passes ctrl+knife arms and, being >1h,
         # ALSO passes young1h+both -> all 4 enter (no exclusion_group) = 15
         # + the 07-20 exit-memo pair (bailfrac aged-clone, agedladder
-        # young-clone; own/no groups) = 17
-        assert len(buys) == 19
+        # young-clone; own/no groups) = 17, + rh_letrun/rh_letrun_sl1 = 19
+        # + rh_subgate (2026-07-24 subtractive gate): its two gate arms FAIL
+        # OPEN on this fixture (age unknown -> band None != "young"; no comp
+        # buy_share) so it enters as a rh_dipall_ctrl clone -> 20.
+        assert len(buys) == 20
         assert all(r.get("bot_id") for r in buys)
         # dashboard ingest de-dups on (ts, ev, pool): keys must be distinct
         keys = {(r["ts"], r["ev"], r["pool"]) for r in buys}
-        assert len(keys) == 19
+        assert len(keys) == 20
+
+    def test_subgate_blocks_young_and_blowoff(self, tmp_path, monkeypatch):
+        # rh_subgate (2026-07-24 subtractive gate, workflow-confirmed base-green
+        # FLIP): on a KNOWN-age pool it ENTERS aged+calm, BLOCKS young band, and
+        # BLOCKS blowoff (30m buy-share > 0.80). Fail-open on unknown age/comp is
+        # covered by the routing test (it enters the ageless fixture). This
+        # FakeFeed has no age_h(), so age is injected via _pool_age_h and the
+        # 30m buy-share via a full comp snapshot (regime_stamp reads it too).
+        def _comp(bs):
+            return {"buy_share": bs, "netflow_usd": 1000.0, "distinct_pools": 50,
+                    "n_buys": 10, "n_sells": 5}
+        # (a) AGED + CALM -> enters
+        lane, _ = self._lane(tmp_path, monkeypatch)
+        self._dip_facts(lane)
+        monkeypatch.setattr(lane, "_pool_age_h", lambda w: 10.0)   # "mid" (aged)
+        monkeypatch.setattr(lane.comp, "snapshot", lambda now: _comp(0.60))
+        lane._consider_entries(NOW)
+        assert "0xp1" in lane.state["rh_subgate"].pos_meta
+
+        # (b) YOUNG band -> blocked with sub_young (control still enters)
+        lane2, _ = self._lane(tmp_path, monkeypatch)
+        self._dip_facts(lane2)
+        monkeypatch.setattr(lane2, "_pool_age_h", lambda w: 3.0)   # "young"
+        monkeypatch.setattr(lane2.comp, "snapshot", lambda now: _comp(0.60))
+        lane2._consider_entries(NOW)
+        assert "0xp1" not in lane2.state["rh_subgate"].pos_meta
+        assert "sub_young" in lane2.state["rh_subgate"].block_hist
+        assert "0xp1" in lane2.state["rh_dipall_ctrl"].pos_meta   # isolates gate
+
+        # (c) BLOWOFF (buy-share > 0.80) on an aged pool -> blocked sub_blowoff
+        lane3, _ = self._lane(tmp_path, monkeypatch)
+        self._dip_facts(lane3)
+        monkeypatch.setattr(lane3, "_pool_age_h", lambda w: 10.0)  # aged
+        monkeypatch.setattr(lane3.comp, "snapshot", lambda now: _comp(0.92))
+        lane3._consider_entries(NOW)
+        assert "0xp1" not in lane3.state["rh_subgate"].pos_meta
+        assert "sub_blowoff" in lane3.state["rh_subgate"].block_hist
 
     def test_launch_scalp_enters_on_strength_not_dip(self, tmp_path,
                                                      monkeypatch):

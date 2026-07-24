@@ -58,7 +58,8 @@ from rh_firehose_feed import (  # noqa: E402
 from rh_chain_feed import Feed, Rpc, _append, iso_utc, pctl  # noqa: E402
 from core.retrace_microstructure import retrace_micro_eval  # noqa: E402
 from core.rh_regime import (  # noqa: E402
-    CompositionTracker, aged_hour_gate_ok, expectancy_dial, regime_stamp,
+    CompositionTracker, age_band, aged_hour_gate_ok, expectancy_dial,
+    regime_stamp,
 )
 from core.rh_rug_signals import (  # noqa: E402
     compute_entry_stamp, fast_liq_bail_verdict, _fast_liq_bail_mode,
@@ -498,6 +499,21 @@ class LaneBot:
     # hard stop — the architecture the mfe test validated. Default off.
     let_run: bool = False
     max_buys_per_day: Optional[int] = None      # UTC-day entry cap; None=off
+    # SUBTRACTIVE ENTRY GATE (2026-07-24 combine-edge-hunt, workflow-confirmed):
+    # the pooled realized-$ search found the fleet's only base-green FLIP is
+    # NOT an additive selector but a SUBTRACTIVE one — refuse the two toxic
+    # entry populations. block_young_band -> require an AGED pool (age_band !=
+    # "young", i.e. >=6h): matches the documented RH edge (aged=honest,
+    # young=fake/knife-catch/staged-exit). max_buy_share_30m -> refuse when the
+    # 30m market buy-share exceeds the threshold (blowoff/late-cycle euphoria;
+    # dip-buying into it catches the reversion top). Blocking (young OR
+    # buyshare>0.80) flipped base -3.23/pos -> +0.85/pos on the remainder (all
+    # 8 pooled guards + held-out + drop-top-2; forward-loaded). Both fields are
+    # decision-time observable at entry (age_band(age_h), comp buy_share).
+    # FAIL-OPEN on None (unknown age / no comp snapshot -> do NOT block), per
+    # the age_band gate-consumer contract. Default off = byte-identical fleet.
+    block_young_band: bool = False
+    max_buy_share_30m: Optional[float] = None
 
     def bot_config(self) -> BotConfig:
         kw = {}
@@ -1263,6 +1279,21 @@ ROSTER = (
             dip_trigger_pct=-8.0, min_liq_usd=10_000.0,
             min_pool_age_h=1.0, knife_skip=True,
             sl1_pct=-6.0, sl1_sell_fraction=0.75,
+            max_concurrent=2),
+    # SUBTRACTIVE ENTRY GATE A/B (2026-07-24 combine-edge-hunt, workflow-
+    # confirmed): byte-identical ENTRY/EXIT to rh_dipall_ctrl (dip -8, liq 10k,
+    # any age, sl1 -6/0.75) + the ONLY delta = the two-condition subtractive
+    # gate (block young band OR 30m market buy-share > 0.80). PAIRED vs
+    # rh_dipall_ctrl = the clean single-delta test of the pooled base-green
+    # FLIP (remainder -3.23/pos -> +0.85/pos, all 8 guards + held-out +
+    # drop-top-2, forward-loaded). No exclusion_group -> trades the same stream
+    # independently (paired-by-token). Grade forward n>=30 across >=2 days
+    # before any live arm (AxiS-gated, per the safe-live framework).
+    LaneBot(bot_id="rh_subgate",
+            dip_trigger_pct=-8.0, min_liq_usd=10_000.0,
+            min_pool_age_h=0.0,
+            sl1_pct=-6.0, sl1_sell_fraction=0.75,
+            block_young_band=True, max_buy_share_30m=0.80,
             max_concurrent=2),
     # ── LET-WINNERS-RUN A/B (2026-07-23, AxiS: "you don't understand how to
     # trade memecoins" — and the data agreed). Memecoins are a POWER-LAW /
@@ -2732,6 +2763,9 @@ class PaperLane:
                     ts_ = float(info_.get("ts") or 0)
                     if ts_ > fleet_loss_stops.get(pool_, (0.0, None))[0]:
                         fleet_loss_stops[pool_] = (ts_, info_.get("px"))
+        # subtractive-gate shared fact (once/tick, feed-wide, pure CPU): the
+        # 30m market buy-share. None -> the blowoff arm fails OPEN.
+        _sub_bshare = self.comp.snapshot(now).get("buy_share")
         for pool, series in list(self.prices.items()):
             w = self.feed.watch.get(pool)
             if not w:
@@ -2750,6 +2784,7 @@ class PaperLane:
             buys, sells = flow_sums(rows, now)
             liq = float(w.get("liq") or 0)
             age_h = self._pool_age_h(w)
+            band = age_band(age_h)   # subtractive-gate: None -> fails OPEN
             drain = lp_drain_pct(self.liq_hist.get(pool, []), now)
             # launch_strength shared facts (pure CPU on in-memory data)
             rise_open = rise_from_open_pct(series, now)
@@ -2796,6 +2831,14 @@ class PaperLane:
                     extra.append("dead_token")
                 if bot.mfr_veto and mfr_active:
                     extra.append("mfr_veto")
+                # SUBTRACTIVE ENTRY GATE (2026-07-24): refuse the two toxic
+                # populations (fail-open on None per the age_band contract).
+                if bot.block_young_band and band == "young":
+                    extra.append("sub_young")
+                if (bot.max_buy_share_30m is not None
+                        and _sub_bshare is not None
+                        and _sub_bshare > bot.max_buy_share_30m):
+                    extra.append("sub_blowoff")
                 if bot.pool_loss_lockout_n is not None:
                     _ll = [t for t in st.pool_loss_closes.get(pool, ())
                            if now - t <= 6 * 3600.0]
